@@ -111,9 +111,7 @@ var workTypeOptionsByJob = {
   gps: [{key:'full', label:'شهري'}, {key:'daily', label:'يومي'}],
   level: [{key:'full', label:'شهري'}, {key:'daily', label:'يومي'}]
 };
-function handleSpecialtyKeydown(evt, inputId, wrapId){
-  if(evt.key !== 'Enter') return;
-  evt.preventDefault();
+function addSpecialtyFromInput(inputId, wrapId){
   var input = document.getElementById(inputId || 'newSpecialtyInput');
   var value = input.value.trim();
   if(!value) return;
@@ -125,6 +123,11 @@ function handleSpecialtyKeydown(evt, inputId, wrapId){
   tag.setAttribute('onclick', 'removeSpecialtyTag(this)');
   wrap.appendChild(tag);
   input.value = '';
+}
+function handleSpecialtyKeydown(evt, inputId, wrapId){
+  if(evt.key !== 'Enter') return;
+  evt.preventDefault();
+  addSpecialtyFromInput(inputId, wrapId);
 }
 function removeSpecialtyTag(el){
   el.remove();

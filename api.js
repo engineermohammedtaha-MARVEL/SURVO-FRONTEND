@@ -74,6 +74,19 @@ function renderUserProfile(user) {
   var homeNameEl = document.getElementById('homeUserName');
   if (homeNameEl) homeNameEl.textContent = user.fullName;
 
+  var avatarEl = document.getElementById('profileAvatarDisplay');
+  if (avatarEl) {
+    var avatarInput = avatarEl.querySelector('input[type=file]');
+    if (user.avatarUrl) {
+      avatarEl.style.backgroundImage = 'url(' + user.avatarUrl + ')';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = '📷';
+    }
+    if (avatarInput) avatarEl.appendChild(avatarInput);
+  }
+
   var profileNameEl = document.getElementById('profileName');
   if (profileNameEl) profileNameEl.textContent = user.fullName;
 
@@ -93,6 +106,9 @@ function renderUserProfile(user) {
   var reviewsEl = document.getElementById('profileReviewsStat');
   if (reviewsEl) reviewsEl.textContent = user.ratingCount || 0;
 
+  var responseEl = document.getElementById('profileResponseStat');
+  if (responseEl) responseEl.textContent = (user.responseRate === null || user.responseRate === undefined) ? '—' : ('٪' + user.responseRate);
+
   var specEl = document.getElementById('profileSpecialties');
   if (specEl) {
     specEl.innerHTML = (user.specialties && user.specialties.length)
@@ -102,6 +118,34 @@ function renderUserProfile(user) {
 
   var bioEl = document.getElementById('profileBio');
   if (bioEl) bioEl.textContent = user.bio || 'لسه مفيش نبذة مكتوبة.';
+}
+
+async function handleProfileAvatarSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const avatarEl = document.getElementById('profileAvatarDisplay');
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+
+    const updated = await apiRequest('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ avatarUrl: data.url }),
+    });
+    setCurrentUser(updated.user);
+    renderUserProfile(updated.user);
+    showToast('تم تحديث صورة البروفايل ✓');
+  } catch (err) {
+    showToast(err.message || 'تعذر رفع الصورة');
+  }
 }
 
 async function refreshCurrentUser() {
@@ -356,10 +400,12 @@ async function loadHomeEquipment() {
   if (!grid) return;
   try {
     const data = await apiRequest('/equipment?pageSize=20');
-    if (!data || !data.items || !data.items.length) return; // نسيب الكروت التجريبية الموجودة لو مفيش بيانات حقيقية لسه
-    grid.innerHTML = data.items.map(equipmentCardHTML).join('');
+    const items = (data && data.items) || [];
+    grid.innerHTML = items.length
+      ? items.map(equipmentCardHTML).join('')
+      : '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش أجهزة معروضة قريب منك دلوقتي</div>';
   } catch (err) {
-    // السيرفر مش شغال أو مفيش اتصال؛ نسيب الكروت التجريبية كما هي
+    grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">تعذر تحميل الأجهزة، تأكد من الاتصال بالإنترنت</div>';
     console.warn('تعذر تحميل الأجهزة من السيرفر:', err.message);
   }
 }
@@ -464,6 +510,7 @@ async function handleEquipPhotoSelect(input, slotIndex) {
 
 function resetAddEquipPhotos() {
   addEquipPhotoUrls = {};
+  equipDocUrls = {};
   [1, 2].forEach(function (i) {
     const slot = document.getElementById('addEquipPhotoSlot' + i);
     if (slot) {
@@ -473,6 +520,40 @@ function resetAddEquipPhotos() {
       if (input) input.value = '';
     }
   });
+  ['ownershipDocStatus', 'serialPhotoStatus'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '⬆';
+  });
+  const serialInput = document.getElementById('addEquipSerialNumber');
+  if (serialInput) serialInput.value = '';
+}
+
+var equipDocUrls = {};
+
+async function handleEquipDocSelect(input, key, statusId) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
+
+    equipDocUrls[key] = data.url;
+    if (statusEl) statusEl.textContent = '✓';
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⬆';
+    showToast(err.message || 'تعذر رفع الملف');
+  }
 }
 
 async function submitAddEquipment() {
@@ -493,6 +574,8 @@ async function submitAddEquipment() {
     return;
   }
 
+  const serialNumberInput = document.getElementById('addEquipSerialNumber');
+
   const payload = {
     title,
     category,
@@ -500,6 +583,9 @@ async function submitAddEquipment() {
     description: description.trim() || undefined,
     governorate,
     images: Object.values(addEquipPhotoUrls),
+    serialNumber: serialNumberInput ? serialNumberInput.value.trim() || undefined : undefined,
+    ownershipDocUrl: equipDocUrls.ownershipDocUrl,
+    serialNumberPhotoUrl: equipDocUrls.serialNumberPhotoUrl,
   };
   if (listingType === 'rent') payload.pricePerDay = price || undefined;
   else payload.salePrice = price || undefined;
@@ -511,6 +597,34 @@ async function submitAddEquipment() {
     setTimeout(function () { showPage('myequip'); loadMyEquipment(); }, 700);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء إضافة الجهاز');
+  }
+}
+
+var supportAttachmentUrl = null;
+
+async function handleSupportAttachmentSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('supportAttachmentStatus');
+  if (statusEl) statusEl.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+
+    supportAttachmentUrl = data.url;
+    if (statusEl) statusEl.textContent = '✓';
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⬆';
+    showToast(err.message || 'تعذر رفع الصورة');
   }
 }
 
@@ -530,10 +644,14 @@ async function submitSupportTicket() {
       body: JSON.stringify({
         type: typeSelect ? typeSelect.value : 'استفسار عام',
         details,
+        attachmentUrl: supportAttachmentUrl || undefined,
       }),
     });
     showToast('تم إرسال طلبك ✓ هنرد عليك قريب');
     if (detailsInput) detailsInput.value = '';
+    supportAttachmentUrl = null;
+    const statusEl = document.getElementById('supportAttachmentStatus');
+    if (statusEl) statusEl.textContent = '⬆';
     setTimeout(function () { showPage('profile'); }, 1000);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء إرسال طلبك');
@@ -781,7 +899,7 @@ async function openRealPublicProfile(userId) {
 
     document.getElementById('pubRating').textContent = Number(user.rating || 0).toFixed(1);
     document.getElementById('pubReviews').textContent = user.ratingCount || 0;
-    document.getElementById('pubResponse').textContent = '—';
+    document.getElementById('pubResponse').textContent = (user.responseRate === null || user.responseRate === undefined) ? '—' : ('٪' + user.responseRate);
 
     document.getElementById('pubTags').innerHTML = (user.specialties && user.specialties.length)
       ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
