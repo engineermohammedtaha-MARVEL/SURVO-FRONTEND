@@ -432,11 +432,18 @@ function myEquipRowHTML(item) {
     ? '<span class="badge badge-verified">متاح</span>'
     : '<span class="badge" style="background:#FCEFDD; color:var(--amber-dark);">غير متاح</span>';
 
+  const moderationBadge = item.moderationStatus === 'pending'
+    ? '<span class="badge" style="background:#FFF3D6; color:#a06a00;">قيد المراجعة</span>'
+    : item.moderationStatus === 'rejected'
+      ? '<span class="badge" style="background:#FDE3E3; color:#b3261e;">مرفوض</span>'
+      : '';
+
   return (
     '<div class="list-row" data-equip-id="' + item.id + '">' +
     '<span>' + icon + '</span>' +
     '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
     '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
+    moderationBadge +
     statusBadge +
     '<span class="delete-ico" onclick="deleteMyEquipment(\'' + item.id + '\')">🗑</span>' +
     '</div>'
@@ -592,10 +599,10 @@ async function submitAddEquipment() {
   else payload.salePrice = price || undefined;
 
   try {
-    await apiRequest('/equipment', { method: 'POST', body: JSON.stringify(payload) });
-    showToast('تم إضافة الجهاز ✓');
+    const data = await apiRequest('/equipment', { method: 'POST', body: JSON.stringify(payload) });
+    showToast(data.message || 'تم إضافة الجهاز ✓');
     resetAddEquipPhotos();
-    setTimeout(function () { showPage('myequip'); loadMyEquipment(); }, 700);
+    setTimeout(function () { showPage('myequip'); loadMyEquipment(); }, 900);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء إضافة الجهاز');
   }
