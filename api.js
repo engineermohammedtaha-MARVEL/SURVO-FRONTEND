@@ -297,6 +297,7 @@ async function loginUser() {
     setAuthToken(data.token);
     setCurrentUser(data.user);
     renderUserProfile(data.user);
+    refreshCurrentUser();
     showToast('تم تسجيل الدخول ✓');
     setTimeout(function () { showPage('home'); }, 500);
   } catch (err) {
