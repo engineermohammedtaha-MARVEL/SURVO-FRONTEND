@@ -116,6 +116,30 @@ async function refreshCurrentUser() {
 // AUTH
 // ============================================================
 
+var registrationDocUrls = {};
+
+async function handleRegistrationDocSelect(input, key, statusId) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads/registration', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
+
+    registrationDocUrls[key] = data.url;
+    if (statusEl) statusEl.textContent = '✓';
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⬆';
+    showToast(err.message || 'تعذر رفع الملف');
+  }
+}
+
 async function registerUser() {
   const nameLabel = document.getElementById('fullNameLabel');
   const isOffice = nameLabel && nameLabel.textContent.trim() === 'اسم المكتب / الشركة';
@@ -163,9 +187,15 @@ async function registerUser() {
         governorate,
         bio: bio.trim() || undefined,
         specialties: specialtyTags.length ? specialtyTags : undefined,
+        nationalIdUrl: registrationDocUrls.nationalIdUrl,
+        personalPhotoUrl: registrationDocUrls.personalPhotoUrl,
+        qualificationUrl: registrationDocUrls.qualificationUrl,
+        unionCardUrl: registrationDocUrls.unionCardUrl,
+        commercialRecordUrl: registrationDocUrls.commercialRecordUrl,
       }),
     });
 
+    registrationDocUrls = {};
     showToast(data.message || 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة');
     setTimeout(function () { showPage('login'); }, 1200);
   } catch (err) {
