@@ -1157,26 +1157,12 @@
         </div>
         <div class="subtitle" style="margin-top:-8px;">تأكد من حالة أي جهاز قبل الشراء أو الإيجار باستخدام الرقم التسلسلي (Serial Number).</div>
 
-        <span class="field-label">نوع الجهاز</span>
-        <select class="field-gap"><option>توتال ستاشن</option><option>GPS</option><option>ميزان</option><option>ليزر سكانر</option></select>
-
-        <span class="field-label">ماركة الجهاز</span>
-        <input type="text" class="field-gap" placeholder="مثال: Leica، Trimble، Topcon">
-
         <span class="field-label">الرقم التسلسلي للجهاز</span>
-        <input type="text" class="field-gap" placeholder="مثال: TS15-884213-EG">
+        <input type="text" class="field-gap" id="inquirySerialInput" placeholder="مثال: TS15-884213-EG">
 
-        <button class="btn btn-primary btn-block" style="margin-bottom:16px;" onclick="showToast('جاري الاستعلام...')">استعلام</button>
+        <button class="btn btn-primary btn-block" style="margin-bottom:16px;" onclick="submitInquiry()">استعلام</button>
 
-        <div class="card" style="border:1.5px solid var(--green); background:var(--green-bg); margin-bottom:10px;">
-          <div style="display:flex; gap:9px; align-items:flex-start;">
-            <span style="font-size:18px;">✅</span>
-            <div>
-              <div style="font-size:13px; font-weight:700; color:var(--green);">لا توجد بلاغات على هذا الجهاز</div>
-              <div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7;">توتال ستاشن لايكا TS 15 — مسجّل باسم مكتب موثّق، ومفيش أي بلاغ فقدان أو سرقة مسجّل عليه حتى الآن.</div>
-            </div>
-          </div>
-        </div>
+        <div id="inquiryResult"></div>
 
         <div class="info-box light">
           <span>ⓘ</span>
@@ -1194,50 +1180,52 @@
         <div class="subtitle" style="margin-top:-8px;">بلّغ عن جهازك المفقود أو المسروق عشان يظهر تحذير لأي حد يحاول يستعلم عنه أو يعرضه على المنصة.</div>
 
         <span class="field-label">نوع الجهاز</span>
-        <select class="field-gap"><option>توتال ستاشن</option><option>GPS</option><option>ميزان</option><option>ليزر سكانر</option></select>
+        <select class="field-gap" id="reportCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
 
         <span class="field-label">ماركة الجهاز</span>
-        <input type="text" class="field-gap" placeholder="مثال: Leica، Trimble، Topcon">
+        <input type="text" class="field-gap" id="reportBrand" placeholder="مثال: Leica، Trimble، Topcon">
 
         <span class="field-label">الرقم التسلسلي للجهاز (Serial Number)</span>
-        <input type="text" class="field-gap" placeholder="مثال: TS15-884213-EG">
+        <input type="text" class="field-gap" id="reportSerialNumber" placeholder="مثال: TS15-884213-EG">
 
         <span class="field-label">حالة البلاغ</span>
-        <div class="btn-row field-gap">
-          <button class="btn btn-primary" style="flex:1;">مسروق</button>
-          <button class="btn" style="flex:1;">مفقود</button>
+        <div class="btn-row field-gap" id="reportStatusToggle">
+          <button type="button" class="btn btn-primary" data-status="stolen" onclick="selectReportStatus(this)" style="flex:1;">مسروق</button>
+          <button type="button" class="btn" data-status="lost" onclick="selectReportStatus(this)" style="flex:1;">مفقود</button>
         </div>
 
         <span class="field-label">تفاصيل الواقعة</span>
-        <textarea class="field-gap" placeholder="مثال: تم سرقة الجهاز من موقع العمل بتاريخ ٥ يوليو بمنطقة..."></textarea>
+        <textarea class="field-gap" id="reportDetails" placeholder="مثال: تم سرقة الجهاز من موقع العمل بتاريخ ٥ يوليو بمنطقة..."></textarea>
 
         <span class="field-label">رقم للتواصل</span>
-        <input type="text" class="field-gap" placeholder="01xxxxxxxxx">
+        <input type="text" class="field-gap" id="reportContactPhone" placeholder="01xxxxxxxxx">
 
-        <div class="upload-row">
+        <label class="upload-row" style="cursor:pointer;">
           <span>📎</span>
           <div style="flex:1;">
             <div style="font-size:12.5px; font-weight:700;">إرفاق محضر الشرطة (إن وجد)</div>
             <div style="font-size:10.5px; color:var(--ink-faint);">يساعد في تسريع اعتماد البلاغ</div>
           </div>
-          <i>⬆</i>
-        </div>
+          <i id="reportPoliceDocStatus">⬆</i>
+          <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleReportDocSelect(this, 'policeReportUrl', 'reportPoliceDocStatus')">
+        </label>
 
-        <div class="upload-row" style="margin-bottom:16px;">
+        <label class="upload-row" style="margin-bottom:16px; cursor:pointer;">
           <span>📄</span>
           <div style="flex:1;">
             <div style="font-size:12.5px; font-weight:700;">إرفاق سند الملكية أو شهادة المعايرة</div>
             <div style="font-size:10.5px; color:var(--ink-faint);">يثبت ملكيتك للجهاز ويسرّع اعتماد البلاغ</div>
           </div>
-          <i>⬆</i>
-        </div>
+          <i id="reportOwnershipDocStatus">⬆</i>
+          <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleReportDocSelect(this, 'ownershipDocUrl', 'reportOwnershipDocStatus')">
+        </label>
 
         <div class="info-box">
           <span>⚠</span>
           <span>بمجرد اعتماد البلاغ، هيظهر تحذير فوري لأي مستخدم يستعلم عن الرقم التسلسلي ده، ولن يقدر أي مشترك يعرضه للبيع أو الإيجار على المنصة.</span>
         </div>
 
-        <button class="btn btn-primary btn-block" onclick="showToast('تم إرسال البلاغ ✓')">إرسال البلاغ</button>
+        <button class="btn btn-primary btn-block" onclick="submitDeviceReport()">إرسال البلاغ</button>
       </div>
 
     </div>
@@ -1254,8 +1242,8 @@
   </div>
 </div>
 
-<script src="api.js?v=10"></script>
-<script src="script.js?v=10"></script>
+<script src="api.js?v=11"></script>
+<script src="script.js?v=11"></script>
 
 </body>
 </html>

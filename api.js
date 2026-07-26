@@ -629,6 +629,118 @@ async function handleSupportAttachmentSelect(input) {
   }
 }
 
+const DEVICE_CATEGORY_LABELS = {
+  totalstation: 'توتال ستاشن',
+  gps: 'GPS',
+  level: 'ميزان',
+  laser: 'ليزر سكانر',
+  accessories: 'اكسسوارات',
+};
+
+var reportDocUrls = {};
+
+function selectReportStatus(el) {
+  const wrap = document.getElementById('reportStatusToggle');
+  wrap.querySelectorAll('button').forEach(function (b) { b.classList.toggle('btn-primary', b === el); });
+}
+
+async function handleReportDocSelect(input, key, statusId) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
+
+    reportDocUrls[key] = data.url;
+    if (statusEl) statusEl.textContent = '✓';
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⬆';
+    showToast(err.message || 'تعذر رفع الملف');
+  }
+}
+
+async function submitDeviceReport() {
+  const category = (document.getElementById('reportCategory') || {}).value || 'totalstation';
+  const brand = (document.getElementById('reportBrand') || {}).value || '';
+  const serialNumber = (document.getElementById('reportSerialNumber') || {}).value || '';
+  const statusBtn = document.querySelector('#reportStatusToggle button.btn-primary');
+  const status = statusBtn ? statusBtn.getAttribute('data-status') : 'stolen';
+  const details = (document.getElementById('reportDetails') || {}).value || '';
+  const contactPhone = (document.getElementById('reportContactPhone') || {}).value || '';
+
+  if (!serialNumber.trim()) {
+    showToast('اكتب الرقم التسلسلي للجهاز');
+    return;
+  }
+
+  try {
+    await apiRequest('/device-reports', {
+      method: 'POST',
+      body: JSON.stringify({
+        category,
+        brand: brand.trim() || undefined,
+        serialNumber: serialNumber.trim(),
+        status,
+        details: details.trim() || undefined,
+        contactPhone: contactPhone.trim() || undefined,
+        policeReportUrl: reportDocUrls.policeReportUrl,
+        ownershipDocUrl: reportDocUrls.ownershipDocUrl,
+      }),
+    });
+    showToast('تم إرسال البلاغ ✓ هيتم مراجعته والتأكد منه قريبًا');
+    reportDocUrls = {};
+    setTimeout(function () { showPage('protection'); }, 1000);
+  } catch (err) {
+    showToast(err.message || 'حصل خطأ أثناء إرسال البلاغ');
+  }
+}
+
+async function submitInquiry() {
+  const input = document.getElementById('inquirySerialInput');
+  const serialNumber = input ? input.value.trim() : '';
+  const resultEl = document.getElementById('inquiryResult');
+  if (!serialNumber) {
+    showToast('اكتب الرقم التسلسلي الأول');
+    return;
+  }
+  resultEl.innerHTML = '<div class="subtitle" style="text-align:center;">بيتم الاستعلام...</div>';
+
+  try {
+    const data = await apiRequest('/device-reports/lookup?serialNumber=' + encodeURIComponent(serialNumber));
+    if (data.clean) {
+      resultEl.innerHTML =
+        '<div class="card" style="border:1.5px solid var(--green); background:var(--green-bg); margin-bottom:10px;">' +
+        '<div style="display:flex; gap:9px; align-items:flex-start;">' +
+        '<span style="font-size:18px;">✅</span>' +
+        '<div><div style="font-size:13px; font-weight:700; color:var(--green);">لا توجد بلاغات على هذا الجهاز</div>' +
+        '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7;">مفيش أي بلاغ فقدان أو سرقة مسجّل على الرقم التسلسلي ده حتى الآن.</div></div>' +
+        '</div></div>';
+    } else {
+      const statusLabel = data.status === 'stolen' ? 'مسروق' : 'مفقود';
+      resultEl.innerHTML =
+        '<div class="card" style="border:1.5px solid var(--rust); background:#FCEAEA; margin-bottom:10px;">' +
+        '<div style="display:flex; gap:9px; align-items:flex-start;">' +
+        '<span style="font-size:18px;">⚠️</span>' +
+        '<div><div style="font-size:13px; font-weight:700; color:var(--rust);">تحذير: الجهاز ده مبلّغ عنه كـ ' + statusLabel + '</div>' +
+        '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7;">' + (DEVICE_CATEGORY_LABELS[data.category] || data.category) + (data.brand ? ' — ' + data.brand : '') + '. متنصحش تكمل شراء أو إيجار الجهاز ده.</div></div>' +
+        '</div></div>';
+    }
+  } catch (err) {
+    resultEl.innerHTML = '<div class="subtitle" style="text-align:center;">' + (err.message || 'تعذر الاستعلام') + '</div>';
+  }
+}
+
 async function submitSupportTicket() {
   const typeSelect = document.getElementById('supportTicketType');
   const detailsInput = document.getElementById('supportTicketDetails');
