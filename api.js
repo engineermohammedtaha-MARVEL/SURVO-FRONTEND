@@ -161,32 +161,13 @@ async function registerUser() {
         password,
         accountType,
         governorate,
+        bio: bio.trim() || undefined,
+        specialties: specialtyTags.length ? specialtyTags : undefined,
       }),
     });
 
-    setAuthToken(data.token);
-    setCurrentUser(data.user);
-    renderUserProfile(data.user);
-
-    // حفظ النبذة والتخصصات بعد إنشاء الحساب مباشرة
-    if (bio.trim() || specialtyTags.length) {
-      try {
-        const updated = await apiRequest('/users/me', {
-          method: 'PATCH',
-          body: JSON.stringify({
-            bio: bio.trim() || undefined,
-            specialties: specialtyTags.length ? specialtyTags : undefined,
-          }),
-        });
-        setCurrentUser(updated.user);
-        renderUserProfile(updated.user);
-      } catch (e) {
-        // مش هنوقف عملية التسجيل بسبب فشل تحديث النبذة
-      }
-    }
-
-    showToast('تم إنشاء حسابك ✓');
-    setTimeout(function () { showPage('home'); }, 700);
+    showToast(data.message || 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة');
+    setTimeout(function () { showPage('login'); }, 1200);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء إنشاء الحساب');
   }
