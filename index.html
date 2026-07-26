@@ -647,9 +647,24 @@
         <div id="forgot-step-sent" style="display:none; text-align:center; padding-top:20px;">
           <div style="font-size:40px;">📧</div>
           <h2 class="title" style="margin-top:10px;">تم الإرسال</h2>
-          <div class="subtitle">بعتنالك رابط إعادة تعيين كلمة المرور على بريدك الإلكتروني، افتحه واتبع الخطوات لتعيين كلمة مرور جديدة.</div>
+          <div class="subtitle">لو الإيميل ده مسجل عندنا، هيوصلك رابط إعادة تعيين كلمة المرور. افتحه واتبع الخطوات لتعيين كلمة مرور جديدة.</div>
           <button class="btn btn-primary btn-block" style="margin-top:16px;" onclick="showPage('login')">الرجوع لتسجيل الدخول</button>
         </div>
+      </div>
+
+      <!-- ============ RESET PASSWORD (من رابط الإيميل) ============ -->
+      <div class="page" id="page-reset-password">
+        <div class="topbar">
+          <span style="width:34px;"></span>
+          <div class="page-title">تعيين كلمة مرور جديدة</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div class="subtitle" style="margin-top:4px;">اكتب كلمة المرور الجديدة لحسابك</div>
+        <span class="field-label">كلمة المرور الجديدة</span>
+        <input type="password" id="resetNewPasswordInput" class="field-gap" placeholder="6 أحرف على الأقل">
+        <span class="field-label">تأكيد كلمة المرور</span>
+        <input type="password" id="resetNewPasswordConfirmInput" class="field-gap" placeholder="أعد كتابة كلمة المرور">
+        <button class="btn btn-primary btn-block" onclick="submitResetPassword()">حفظ كلمة المرور الجديدة</button>
       </div>
 
       <div class="page" id="page-register">
@@ -696,6 +711,14 @@
             <div class="acc-type-icon" style="font-size:20px; color:var(--ink-faint);">📝</div>
             <div class="acc-type-label" style="font-size:11.5px; font-weight:700; margin-top:5px; color:var(--ink-soft);">تسجيل عام</div>
           </div>
+        </div>
+
+        <div style="text-align:center; margin-bottom:16px;">
+          <label id="registerAvatarPreview" style="display:inline-flex; align-items:center; justify-content:center; width:80px; height:80px; border-radius:50%; background:var(--cream-2); border:1.5px dashed var(--ink-faint); cursor:pointer; font-size:22px; background-size:cover; background-position:center;">
+            📷
+            <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleRegisterAvatarSelect(this)">
+          </label>
+          <div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">أضف صورة للبروفايل (اختياري)</div>
         </div>
 
         <span class="field-label" id="fullNameLabel">الاسم بالكامل</span>
@@ -862,6 +885,16 @@
           <button class="btn" id="pubChatBtn" onclick="showToast('فتح المحادثة')">✉ مراسلة</button>
           <button class="btn btn-primary" style="flex:1.4;" id="pubCallBtn" onclick="showToast('اتصال')">📞 الاتصال</button>
         </div>
+
+        <div class="section-label" style="margin-top:18px;">قيّم المستخدم ده</div>
+        <div id="pubStarPicker" style="font-size:26px; letter-spacing:4px; margin-bottom:8px;">
+          <span data-star="1" onclick="setPubRatingStars(1)" style="cursor:pointer; color:var(--ink-faint);">★</span><span data-star="2" onclick="setPubRatingStars(2)" style="cursor:pointer; color:var(--ink-faint);">★</span><span data-star="3" onclick="setPubRatingStars(3)" style="cursor:pointer; color:var(--ink-faint);">★</span><span data-star="4" onclick="setPubRatingStars(4)" style="cursor:pointer; color:var(--ink-faint);">★</span><span data-star="5" onclick="setPubRatingStars(5)" style="cursor:pointer; color:var(--ink-faint);">★</span>
+        </div>
+        <textarea class="field-gap" id="pubReviewComment" placeholder="اكتب تعليق (اختياري)..."></textarea>
+        <button class="btn btn-primary btn-block" onclick="submitPubReview()">إرسال التقييم</button>
+
+        <div class="section-label" style="margin-top:16px;">التقييمات</div>
+        <div id="pubReviewsList"><div class="subtitle" style="text-align:center;">لسه مفيش تقييمات</div></div>
       </div>
 
 
@@ -881,7 +914,7 @@
       <div class="page" id="page-chat">
         <div class="topbar">
           <div class="icon-btn" onclick="showPage('home')">→</div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="openCurrentChatProfile()">
             <div class="avatar" id="chatAvatar" style="width:30px; height:30px; font-size:11px;">مد</div>
             <div class="page-title" id="chatRecipientName">مكتب الدقة للمساحة</div>
           </div>
@@ -1260,8 +1293,8 @@
   </div>
 </div>
 
-<script src="api.js?v=6"></script>
-<script src="script.js?v=6"></script>
+<script src="api.js?v=8"></script>
+<script src="script.js?v=8"></script>
 
 </body>
 </html>

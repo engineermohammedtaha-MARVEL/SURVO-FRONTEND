@@ -9,12 +9,12 @@ function showPage(name){
     var el = document.querySelector('.nav-item[data-nav="'+navName+'"]');
     if(el) el.classList.add('on');
   }
-  var isAuthScreen = (name === 'register' || name === 'login' || name === 'forgot-password');
+  var isAuthScreen = (name === 'register' || name === 'login' || name === 'forgot-password' || name === 'reset-password');
   var nav = document.querySelector('.bottomnav');
   var header = document.querySelector('.app-header');
   if(nav) nav.style.display = isAuthScreen ? 'none' : '';
   if(header) header.style.display = isAuthScreen ? 'none' : '';
-  if(name === 'forgot-password'){
+  if(name === 'forgot-password' || name === 'reset-password'){
     var stepEmail = document.getElementById('forgot-step-email');
     var stepSent = document.getElementById('forgot-step-sent');
     if(stepEmail) stepEmail.style.display = '';
@@ -23,17 +23,45 @@ function showPage(name){
     if(emailInput) emailInput.value = '';
   }
 }
-function sendResetLink(){
+async function sendResetLink(){
   var emailInput = document.getElementById('forgot-email-input');
   var email = emailInput ? emailInput.value.trim() : '';
   if(!email){
     showToast('من فضلك اكتب البريد الإلكتروني');
     return;
   }
-  // في التطبيق الفعلي: يتم إرسال طلب لسيرفر البريد لإنشاء رابط إعادة تعيين كلمة المرور وإرساله على الإيميل
-  document.getElementById('forgot-step-email').style.display = 'none';
-  document.getElementById('forgot-step-sent').style.display = '';
-  showToast('تم إرسال رابط إعادة التعيين ✓');
+  try{
+    await apiRequest('/auth/forgot-password', { method:'POST', body: JSON.stringify({ email: email }) });
+    document.getElementById('forgot-step-email').style.display = 'none';
+    document.getElementById('forgot-step-sent').style.display = '';
+  }catch(err){
+    showToast(err.message || 'حصل خطأ أثناء إرسال الرابط');
+  }
+}
+
+async function submitResetPassword(){
+  var pass = (document.getElementById('resetNewPasswordInput')||{}).value || '';
+  var confirm = (document.getElementById('resetNewPasswordConfirmInput')||{}).value || '';
+  if(pass.length < 6){
+    showToast('كلمة المرور لازم تكون 6 أحرف على الأقل');
+    return;
+  }
+  if(pass !== confirm){
+    showToast('كلمة المرور وتأكيدها مش متطابقين');
+    return;
+  }
+  var token = window.__resetToken;
+  if(!token){
+    showToast('رابط غير صالح');
+    return;
+  }
+  try{
+    await apiRequest('/auth/reset-password', { method:'POST', body: JSON.stringify({ token: token, password: pass }) });
+    showToast('تم تغيير كلمة المرور بنجاح ✓');
+    setTimeout(function(){ showPage('login'); }, 1000);
+  }catch(err){
+    showToast(err.message || 'حصل خطأ أثناء تغيير كلمة المرور');
+  }
 }
 var toastTimer;
 function showToast(msg){
@@ -47,7 +75,7 @@ function showToast(msg){
 (function(){
   var active = document.querySelector('.page.active');
   if(active){
-    var isAuthScreen = (active.id === 'page-register' || active.id === 'page-login' || active.id === 'page-forgot-password');
+    var isAuthScreen = (active.id === 'page-register' || active.id === 'page-login' || active.id === 'page-forgot-password' || active.id === 'page-reset-password');
     var nav = document.querySelector('.bottomnav');
     var header = document.querySelector('.app-header');
     if(nav) nav.style.display = isAuthScreen ? 'none' : '';

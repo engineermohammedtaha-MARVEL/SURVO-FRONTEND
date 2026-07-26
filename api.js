@@ -81,7 +81,11 @@ function renderUserProfile(user) {
   if (typeEl) typeEl.textContent = ACCOUNT_TYPE_LABELS[user.accountType] || user.accountType;
 
   var verifiedBadge = document.getElementById('profileVerifiedBadge');
-  if (verifiedBadge) verifiedBadge.style.display = user.verification === 'verified' ? '' : 'none';
+  if (verifiedBadge) {
+    const isVerified = user.verification === 'verified';
+    verifiedBadge.style.display = isVerified ? '' : 'none';
+    verifiedBadge.textContent = (user.accountType === 'engineer' ? '🛡 موثّق نقابيًا' : '🛡 موثّق');
+  }
 
   var ratingEl = document.getElementById('profileRatingStat');
   if (ratingEl) ratingEl.textContent = Number(user.rating || 0).toFixed(1);
@@ -117,6 +121,33 @@ async function refreshCurrentUser() {
 // ============================================================
 
 var registrationDocUrls = {};
+var registerAvatarUrl = null;
+
+async function handleRegisterAvatarSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById('registerAvatarPreview');
+  const label = preview ? preview.firstChild : null;
+  if (label) label.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(API_BASE_URL + '/uploads/registration', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+
+    registerAvatarUrl = data.url;
+    if (preview) {
+      preview.style.backgroundImage = 'url(' + data.url + ')';
+      if (label) label.textContent = '';
+    }
+  } catch (err) {
+    if (label) label.textContent = '📷';
+    showToast(err.message || 'تعذر رفع الصورة');
+  }
+}
 
 async function handleRegistrationDocSelect(input, key, statusId) {
   const file = input.files && input.files[0];
@@ -192,10 +223,12 @@ async function registerUser() {
         qualificationUrl: registrationDocUrls.qualificationUrl,
         unionCardUrl: registrationDocUrls.unionCardUrl,
         commercialRecordUrl: registrationDocUrls.commercialRecordUrl,
+        avatarUrl: registerAvatarUrl || undefined,
       }),
     });
 
     registrationDocUrls = {};
+    registerAvatarUrl = null;
     showToast(data.message || 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة');
     setTimeout(function () { showPage('login'); }, 1200);
   } catch (err) {
@@ -301,13 +334,11 @@ function equipmentCardHTML(item) {
     : '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">🛠️</div>';
 
   const owner = item.owner || {};
-  const ownerName = (owner.fullName || '').replace(/'/g, "\\'");
-  const ownerInitials = (owner.fullName || 'م ص').trim().slice(0, 2);
   const currentUser = getCurrentUser();
   const isOwnListing = currentUser && owner.id === currentUser.id;
   const clickHandler = isOwnListing
     ? "showToast('ده إعلانك انت')"
-    : "openChatWithUser('" + owner.id + "', '" + ownerName + "', '" + ownerInitials + "')";
+    : "openRealPublicProfile('" + owner.id + "')";
 
   return (
     '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
@@ -556,6 +587,7 @@ async function markNotificationRead(id, rowEl) {
 // ============================================================
 
 var currentConversationId = null;
+var currentChatOtherUserId = null;
 
 function chatMessageHTML(msg) {
   const me = getCurrentUser();
@@ -595,7 +627,7 @@ function inboxRowHTML(conv) {
   const name = (other.fullName || '').replace(/'/g, "\\'");
 
   return (
-    '<div class="list-row" style="cursor:pointer;" onclick="openConversationFromInbox(\'' + conv.id + '\', \'' + name + '\', \'' + initials + '\')">' +
+    '<div class="list-row" style="cursor:pointer;" onclick="openConversationFromInbox(\'' + conv.id + '\', \'' + other.id + '\', \'' + name + '\', \'' + initials + '\')">' +
     '<div class="avatar" style="width:34px; height:34px; font-size:12px;">' + initials + '</div>' +
     '<div style="flex:1;">' +
     '<div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (other.fullName || 'مستخدم') + '</div>' +
@@ -619,8 +651,9 @@ async function loadInbox() {
   }
 }
 
-function openConversationFromInbox(conversationId, name, initials) {
+function openConversationFromInbox(conversationId, otherUserId, name, initials) {
   currentConversationId = conversationId;
+  currentChatOtherUserId = otherUserId;
   document.getElementById('chatRecipientName').textContent = name;
   document.getElementById('chatAvatar').textContent = initials;
   showPage('chat');
@@ -629,6 +662,7 @@ function openConversationFromInbox(conversationId, name, initials) {
 
 async function openChatWithUser(userId, name, initials) {
   if (!userId) return;
+  currentChatOtherUserId = userId;
   document.getElementById('chatRecipientName').textContent = name;
   document.getElementById('chatAvatar').textContent = initials || (name || '').trim().slice(0, 2);
   showPage('chat');
@@ -644,6 +678,133 @@ async function openChatWithUser(userId, name, initials) {
     currentConversationId = null;
     showToast(err.message || 'تعذر فتح المحادثة');
   }
+}
+
+// ============================================================
+// PUBLIC PROFILE (page-pubprofile) - بروفايل حقيقي + تقييمات
+// ============================================================
+
+var currentPubProfileUserId = null;
+var currentPubProfileRatingChoice = 0;
+
+function reviewRowHTML(r) {
+  const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+  const date = new Date(r.createdAt).toLocaleDateString('ar-EG');
+  return (
+    '<div class="list-row" style="align-items:flex-start;">' +
+    '<div style="flex:1;">' +
+    '<div style="display:flex; justify-content:space-between;">' +
+    '<span style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (r.fromUser ? r.fromUser.fullName : 'مستخدم') + '</span>' +
+    '<span style="font-size:11px; color:var(--amber-dark);">' + stars + '</span>' +
+    '</div>' +
+    (r.comment ? '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">' + r.comment + '</div>' : '') +
+    '<div style="font-size:10px; color:var(--ink-faint); margin-top:4px;">' + date + '</div>' +
+    '</div></div>'
+  );
+}
+
+async function loadPubReviews(userId) {
+  const wrap = document.getElementById('pubReviewsList');
+  if (!wrap) return;
+  try {
+    const data = await apiRequest('/reviews/user/' + userId);
+    const reviews = (data && data.reviews) || [];
+    wrap.innerHTML = reviews.length
+      ? reviews.map(reviewRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center;">لسه مفيش تقييمات</div>';
+  } catch (err) {
+    wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل التقييمات</div>';
+  }
+}
+
+function setPubRatingStars(n) {
+  currentPubProfileRatingChoice = n;
+  const stars = document.querySelectorAll('#pubStarPicker span');
+  stars.forEach(function (s) {
+    const on = Number(s.getAttribute('data-star')) <= n;
+    s.style.color = on ? 'var(--amber-dark)' : 'var(--ink-faint)';
+  });
+}
+
+async function submitPubReview() {
+  if (!currentPubProfileUserId) return;
+  if (!currentPubProfileRatingChoice) {
+    showToast('اختار عدد النجوم الأول');
+    return;
+  }
+  const commentEl = document.getElementById('pubReviewComment');
+  try {
+    await apiRequest('/reviews', {
+      method: 'POST',
+      body: JSON.stringify({
+        toUserId: currentPubProfileUserId,
+        rating: currentPubProfileRatingChoice,
+        comment: commentEl ? commentEl.value.trim() || undefined : undefined,
+      }),
+    });
+    showToast('تم إرسال التقييم ✓');
+    if (commentEl) commentEl.value = '';
+    setPubRatingStars(0);
+    loadPubReviews(currentPubProfileUserId);
+  } catch (err) {
+    showToast(err.message || 'تعذر إرسال التقييم');
+  }
+}
+
+async function openRealPublicProfile(userId) {
+  if (!userId) return;
+  currentPubProfileUserId = userId;
+  setPubRatingStars(0);
+  const commentEl = document.getElementById('pubReviewComment');
+  if (commentEl) commentEl.value = '';
+  showPage('pubprofile');
+
+  document.getElementById('pubName').textContent = 'بتحمّل...';
+  document.getElementById('pubReviewsList').innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل...</div>';
+
+  try {
+    const data = await apiRequest('/users/' + userId);
+    const user = data.user;
+    const initials = (user.fullName || 'م ص').trim().slice(0, 2);
+
+    document.getElementById('pubAvatar').textContent = initials;
+    document.getElementById('pubAvatar').style.backgroundImage = user.avatarUrl ? 'url(' + user.avatarUrl + ')' : '';
+    document.getElementById('pubAvatar').style.backgroundSize = 'cover';
+    document.getElementById('pubAvatar').style.backgroundPosition = 'center';
+    document.getElementById('pubName').textContent = user.fullName;
+    document.getElementById('pubSubtitle').textContent = ACCOUNT_TYPE_LABELS[user.accountType] || user.accountType;
+
+    const verifiedBadge = document.getElementById('pubVerifiedBadge');
+    const isVerified = user.verification === 'verified';
+    verifiedBadge.style.display = isVerified ? '' : 'none';
+    verifiedBadge.textContent = (user.accountType === 'engineer' ? '🛡 موثّق نقابيًا' : '🛡 موثّق');
+
+    document.getElementById('pubRating').textContent = Number(user.rating || 0).toFixed(1);
+    document.getElementById('pubReviews').textContent = user.ratingCount || 0;
+    document.getElementById('pubResponse').textContent = '—';
+
+    document.getElementById('pubTags').innerHTML = (user.specialties && user.specialties.length)
+      ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
+      : '<span class="tag" style="color:var(--ink-faint);">لا يوجد</span>';
+
+    document.getElementById('pubBio').textContent = user.bio || 'لا يوجد نبذة';
+
+    document.getElementById('pubChatBtn').setAttribute('onclick', "openChatWithUser('" + user.id + "', '" + user.fullName.replace(/'/g, "\\'") + "', '" + initials + "')");
+    document.getElementById('pubCallBtn').setAttribute('onclick', "callSeller('" + (user.phone || '') + "')");
+
+    loadPubReviews(userId);
+  } catch (err) {
+    document.getElementById('pubName').textContent = 'تعذر تحميل البروفايل';
+    showToast(err.message || 'تعذر تحميل البروفايل');
+  }
+}
+
+function openCurrentChatProfile() {
+  if (!currentChatOtherUserId) {
+    showToast('مش متاح دلوقتي');
+    return;
+  }
+  openRealPublicProfile(currentChatOtherUserId);
 }
 
 // ============================================================
@@ -707,6 +868,14 @@ async function contactJobPoster(jobId, message) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+  const params = new URLSearchParams(location.search);
+  const resetToken = params.get('resetToken');
+  if (resetToken) {
+    window.__resetToken = resetToken;
+    showPage('reset-password');
+    return;
+  }
+
   loadHomeEquipment();
 
   // لو المستخدم عامل تسجيل دخول بالفعل من زيارة سابقة، يدخل على طول للصفحة الرئيسية
