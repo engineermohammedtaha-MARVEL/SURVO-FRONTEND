@@ -406,6 +406,12 @@ const JOB_TYPE_LABELS = {
 };
 const WORK_TYPE_LABELS = { full: 'شهري', daily: 'يومي', remote: 'عن بُعد' };
 
+function formatMoney(value, suffix) {
+  const num = Number(value);
+  if (value === null || value === undefined || value === '' || !isFinite(num)) return String(value || '');
+  return num.toLocaleString('ar-EG') + (suffix || '');
+}
+
 function requestCardHTML(item) {
   const typeLabel = item.type === 'rent' ? 'إيجار' : 'شراء';
   const currentUser = getCurrentUser();
@@ -419,7 +425,7 @@ function requestCardHTML(item) {
   if (item.type === 'rent' && item.dateFrom && item.dateTo) {
     priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
   } else if (item.budget) {
-    priceText += ' — ' + Number(item.budget).toLocaleString('ar-EG') + ' ج';
+    priceText += ' — ' + formatMoney(item.budget, ' ج');
   }
 
   return (
@@ -447,7 +453,7 @@ function jobCardHTML(item) {
     '<span class="badge" style="background:#E9F7EF; color:var(--green);">وظيفة</span>' +
     '<div class="item-name">' + item.title + '</div>' +
     '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
-    '<div class="item-price" style="font-size:11.5px;">' + (item.salary ? Number(item.salary).toLocaleString('ar-EG') + ' ج' : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '')) + '</div>' +
+    '<div class="item-price" style="font-size:11.5px;">' + (item.salary ? formatMoney(item.salary, ' ج') : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '')) + '</div>' +
     '</div>'
   );
 }
