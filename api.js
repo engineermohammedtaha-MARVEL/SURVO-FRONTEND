@@ -396,18 +396,99 @@ function equipmentCardHTML(item) {
   );
 }
 
+const JOB_TYPE_LABELS = {
+  engineer: 'مهندس مساحة',
+  surveyor: 'مساح',
+  assistant: 'مساعد',
+  totalstation: 'فريق توتال ستاشن',
+  gps: 'فريق GPS',
+  level: 'فريق ميزان',
+};
+const WORK_TYPE_LABELS = { full: 'شهري', daily: 'يومي', remote: 'عن بُعد' };
+
+function requestCardHTML(item) {
+  const typeLabel = item.type === 'rent' ? 'إيجار' : 'شراء';
+  const currentUser = getCurrentUser();
+  const requester = item.requester || {};
+  const isOwn = currentUser && requester.id === currentUser.id;
+  const clickHandler = isOwn
+    ? "showToast('ده طلبك انت')"
+    : "openChatWithUser('" + requester.id + "', '" + (requester.fullName || '').replace(/'/g, "\\'") + "')";
+
+  let priceText = typeLabel;
+  if (item.type === 'rent' && item.dateFrom && item.dateTo) {
+    priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
+  } else if (item.budget) {
+    priceText += ' — ' + Number(item.budget).toLocaleString('ar-EG') + ' ج';
+  }
+
+  return (
+    '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
+    '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">📨</div>' +
+    '<span class="badge" style="background:#E9EEF7; color:var(--navy-3);">طلب</span>' +
+    '<div class="item-name">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + '</div>' +
+    '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
+    '<div class="item-price" style="font-size:11.5px;">' + priceText + '</div>' +
+    '</div>'
+  );
+}
+
+function jobCardHTML(item) {
+  const currentUser = getCurrentUser();
+  const poster = item.poster || {};
+  const isOwn = currentUser && poster.id === currentUser.id;
+  const clickHandler = isOwn
+    ? "showToast('ده إعلانك انت')"
+    : "openChatWithUser('" + poster.id + "', '" + (poster.fullName || '').replace(/'/g, "\\'") + "')";
+
+  return (
+    '<div class="item-card card" onclick="' + clickHandler + '">' +
+    '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">💼</div>' +
+    '<span class="badge" style="background:#E9F7EF; color:var(--green);">وظيفة</span>' +
+    '<div class="item-name">' + item.title + '</div>' +
+    '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
+    '<div class="item-price" style="font-size:11.5px;">' + (item.salary ? Number(item.salary).toLocaleString('ar-EG') + ' ج' : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '')) + '</div>' +
+    '</div>'
+  );
+}
+
 async function loadHomeEquipment() {
   const grid = document.getElementById('homeListingsGrid');
   if (!grid) return;
   try {
-    const data = await apiRequest('/equipment?pageSize=20');
-    const items = (data && data.items) || [];
-    grid.innerHTML = items.length
-      ? items.map(equipmentCardHTML).join('')
-      : '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش أجهزة معروضة قريب منك دلوقتي</div>';
+    const [equipRes, requestsRes, jobsRes] = await Promise.allSettled([
+      apiRequest('/equipment?pageSize=20'),
+      apiRequest('/requests'),
+      apiRequest('/jobs'),
+    ]);
+
+    const equipment = (equipRes.status === 'fulfilled' && equipRes.value.items || []).map(function (item) {
+      return { _type: 'equipment', createdAt: item.createdAt, item: item };
+    });
+    const requests = (requestsRes.status === 'fulfilled' && requestsRes.value.items || []).map(function (item) {
+      return { _type: 'request', createdAt: item.createdAt, item: item };
+    });
+    const jobs = (jobsRes.status === 'fulfilled' && jobsRes.value.items || []).map(function (item) {
+      return { _type: 'job', createdAt: item.createdAt, item: item };
+    });
+
+    const merged = equipment.concat(requests, jobs).sort(function (a, b) {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    if (!merged.length) {
+      grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش إعلانات قريب منك دلوقتي</div>';
+      return;
+    }
+
+    grid.innerHTML = merged.map(function (entry) {
+      if (entry._type === 'equipment') return equipmentCardHTML(entry.item);
+      if (entry._type === 'request') return requestCardHTML(entry.item);
+      return jobCardHTML(entry.item);
+    }).join('');
   } catch (err) {
-    grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">تعذر تحميل الأجهزة، تأكد من الاتصال بالإنترنت</div>';
-    console.warn('تعذر تحميل الأجهزة من السيرفر:', err.message);
+    grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">تعذر تحميل الإعلانات، تأكد من الاتصال بالإنترنت</div>';
+    console.warn('تعذر تحميل الإعلانات من السيرفر:', err.message);
   }
 }
 
@@ -784,12 +865,16 @@ async function submitSupportTicket() {
 
 function notificationRowHTML(n) {
   const isRead = !!n.readAt;
+  const contactBtn = (n.contactUser && n.contactUser.id)
+    ? '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="event.stopPropagation(); openChatWithUser(\'' + n.contactUser.id + '\', \'' + n.contactUser.fullName.replace(/'/g, "\\'") + '\')">تواصل معاه</button>'
+    : '';
   return (
     '<div class="list-row" style="' + (isRead ? 'opacity:0.6;' : '') + ' cursor:pointer;" onclick="markNotificationRead(\'' + n.id + '\', this)">' +
     '<span>' + (isRead ? '✓' : '🔔') + '</span>' +
-    '<div><div style="font-size:12.5px; font-weight:700;">' + n.title + '</div>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">' + n.title + '</div>' +
     (n.body ? '<div style="font-size:10.5px; color:var(--ink-soft);">' + n.body + '</div>' : '') +
-    '</div></div>'
+    '</div>' + contactBtn +
+    '</div>'
   );
 }
 
@@ -1084,7 +1169,7 @@ async function submitJobPosting() {
     });
     showToast('تم نشر الإعلان ✓');
     if (titleInput) titleInput.value = '';
-    setTimeout(function () { showPage('requesthub'); }, 700);
+    setTimeout(function () { showPage('home'); loadHomeEquipment(); }, 700);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء نشر الإعلان');
   }

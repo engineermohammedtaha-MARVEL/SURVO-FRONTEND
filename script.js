@@ -255,24 +255,9 @@ async function publishRequest(){
     }
   }
 
-  var grid = document.getElementById('homeListingsGrid');
-  if(grid){
-    var card = document.createElement('div');
-    card.className = 'item-card card';
-    card.setAttribute('data-cat', deviceKey);
-    card.style.cursor = 'pointer';
-    card.onclick = function(){ showToast('طلبك منشور، هيوصلك عروض من المشتركين قريباً'); };
-    card.innerHTML =
-      '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">📨</div>' +
-      '<span class="badge" style="background:#E9EEF7; color:var(--navy-3);">طلبك</span>' +
-      '<div class="item-name">طلب: ' + deviceLabel + '</div>' +
-      '<div class="item-loc">📍 ' + govValue + '</div>' +
-      '<div class="item-price" style="font-size:11.5px;">' + priceText + '</div>';
-    grid.insertBefore(card, grid.firstChild);
-  }
-
   showToast('تم نشر طلبك بنجاح ✓');
   showPage('home');
+  if (typeof loadHomeEquipment === 'function') loadHomeEquipment();
 }
 var sellersData = {
   deqa: { name:'مكتب الدقة للمساحة', initials:'مد', subtitle:'مكتب أجهزة مساحية', rating:'4.8', reviews:'32', response:'٪97', verified:true, phone:'201001234567', tags:['تأجير أجهزة','بيع أجهزة','صيانة'], bio:'مكتب متخصص في تأجير وبيع الأجهزة المساحية بخبرة تزيد عن 10 سنين في السوق المصري.' },
