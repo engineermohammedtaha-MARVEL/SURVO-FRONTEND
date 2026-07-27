@@ -1,4 +1,5 @@
 function showPage(name){
+  if(name !== 'chat' && typeof stopChatPolling === 'function') stopChatPolling();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   document.getElementById('content').scrollTop = 0;

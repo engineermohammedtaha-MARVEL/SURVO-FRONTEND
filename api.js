@@ -931,20 +931,39 @@ function chatMessageHTML(msg) {
   return '<div class="msg ' + (isMine ? 'out' : 'in') + '">' + safeBody + '<span class="msg-time">' + timeStr + '</span></div>';
 }
 
-async function loadChatMessages(conversationId) {
+var lastLoadedChatSignature = null;
+
+async function loadChatMessages(conversationId, silent) {
   const wrap = document.getElementById('chatMessages');
   if (!wrap) return;
-  wrap.innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل الرسايل...</div>';
+  if (!silent) wrap.innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل الرسايل...</div>';
   try {
     const data = await apiRequest('/chat/conversations/' + conversationId + '/messages');
     const messages = (data && data.messages) || [];
+    const signature = messages.length + '|' + (messages.length ? messages[messages.length - 1].id + messages[messages.length - 1].createdAt : '');
+    if (silent && signature === lastLoadedChatSignature) return; // مفيش رسايل جديدة، متعملش إعادة رسم
+    lastLoadedChatSignature = signature;
+
     wrap.innerHTML = messages.length
       ? messages.map(chatMessageHTML).join('')
       : '<div class="subtitle" style="text-align:center;">ابدأ المحادثة بأول رسالة</div>';
     wrap.scrollTop = wrap.scrollHeight;
   } catch (err) {
-    wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل الرسايل: ' + (err.message || '') + '</div>';
+    if (!silent) wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل الرسايل: ' + (err.message || '') + '</div>';
   }
+}
+
+var chatPollTimer = null;
+function startChatPolling(conversationId) {
+  stopChatPolling();
+  if (!conversationId) return;
+  chatPollTimer = setInterval(function () {
+    loadChatMessages(conversationId, true);
+  }, 3000);
+}
+function stopChatPolling() {
+  if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+  lastLoadedChatSignature = null;
 }
 
 function inboxRowHTML(conv) {
@@ -987,6 +1006,7 @@ function openConversationFromInbox(conversationId, otherUserId, name, initials) 
   document.getElementById('chatAvatar').textContent = initials;
   showPage('chat');
   loadChatMessages(conversationId);
+  startChatPolling(conversationId);
 }
 
 async function openChatWithUser(userId, name, initials) {
@@ -1003,6 +1023,7 @@ async function openChatWithUser(userId, name, initials) {
     });
     currentConversationId = data.conversation.id;
     loadChatMessages(currentConversationId);
+    startChatPolling(currentConversationId);
   } catch (err) {
     currentConversationId = null;
     showToast(err.message || 'تعذر فتح المحادثة');
