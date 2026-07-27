@@ -383,7 +383,7 @@ function equipmentCardHTML(item) {
   const isOwnListing = currentUser && owner.id === currentUser.id;
   const clickHandler = isOwnListing
     ? "showToast('ده إعلانك انت')"
-    : "openRealPublicProfile('" + owner.id + "')";
+    : "openEquipmentDetail('" + item.id + "')";
 
   return (
     '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
@@ -394,6 +394,64 @@ function equipmentCardHTML(item) {
     '<div class="item-price">' + price + '</div>' +
     '</div>'
   );
+}
+
+async function openEquipmentDetail(itemId) {
+  if (!itemId) return;
+  showPage('equipment-detail');
+
+  document.getElementById('equipDetailTitle').textContent = 'بتحمّل...';
+  document.getElementById('equipDetailThumb').style.backgroundImage = '';
+
+  try {
+    const data = await apiRequest('/equipment/' + itemId);
+    const item = data.item;
+    const owner = item.owner || {};
+    const isRent = item.listingType === 'rent';
+
+    const thumbEl = document.getElementById('equipDetailThumb');
+    if (item.images && item.images[0]) {
+      thumbEl.style.backgroundImage = 'url(' + item.images[0] + ')';
+      thumbEl.textContent = '';
+    } else {
+      thumbEl.style.backgroundImage = '';
+      thumbEl.textContent = '🛠️';
+    }
+
+    const badgeEl = document.getElementById('equipDetailBadge');
+    badgeEl.textContent = isRent ? 'للإيجار' : 'للبيع';
+    badgeEl.className = 'badge ' + (isRent ? 'badge-rent' : 'badge-sale');
+
+    document.getElementById('equipDetailTitle').textContent = item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة';
+    document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+
+    const price = isRent
+      ? (item.pricePerDay ? Number(item.pricePerDay).toLocaleString('ar-EG') + ' ج / يوم' : 'السعر عند الطلب')
+      : (item.salePrice ? Number(item.salePrice).toLocaleString('ar-EG') + ' ج' : 'السعر عند الطلب');
+    document.getElementById('equipDetailPrice').textContent = price;
+
+    document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
+
+    const initials = (owner.fullName || 'م ص').trim().slice(0, 2);
+    document.getElementById('equipDetailOwnerAvatar').textContent = initials;
+    document.getElementById('equipDetailOwnerName').textContent = owner.fullName || 'مستخدم';
+    document.getElementById('equipDetailOwnerRating').textContent = Number(owner.rating || 0).toFixed(1);
+
+    const verifiedBadge = document.getElementById('equipDetailOwnerVerified');
+    verifiedBadge.style.display = owner.verification === 'verified' ? '' : 'none';
+
+    const ownerRow = document.getElementById('equipDetailOwnerRow');
+    ownerRow.setAttribute('onclick', "openRealPublicProfile('" + owner.id + "')");
+
+    const msgBtn = document.getElementById('equipDetailMsgBtn');
+    msgBtn.setAttribute('onclick', "openChatWithUser('" + owner.id + "', '" + (owner.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
+
+    const callBtn = document.getElementById('equipDetailCallBtn');
+    callBtn.setAttribute('onclick', "callSeller('" + (owner.phone || '') + "')");
+  } catch (err) {
+    document.getElementById('equipDetailTitle').textContent = 'تعذر تحميل تفاصيل الجهاز';
+    showToast(err.message || 'تعذر تحميل تفاصيل الجهاز');
+  }
 }
 
 const JOB_TYPE_LABELS = {
@@ -1039,20 +1097,23 @@ function openConversationFromInbox(conversationId, otherUserId, name, initials) 
 async function openChatWithUser(userId, name, initials) {
   if (!userId) return;
   currentChatOtherUserId = userId;
+  currentConversationId = null;
   document.getElementById('chatRecipientName').textContent = name;
   document.getElementById('chatAvatar').textContent = initials || (name || '').trim().slice(0, 2);
   showPage('chat');
 
+  // مجرد فتح شاشة الشات مش المفروض ينشئ محادثة حقيقية — إلا لو فعلاً موجودة من قبل
   try {
-    const data = await apiRequest('/chat/conversations', {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-    });
-    currentConversationId = data.conversation.id;
-    loadChatMessages(currentConversationId);
-    startChatPolling(currentConversationId);
+    const data = await apiRequest('/chat/conversations/with/' + userId);
+    if (data.conversation) {
+      currentConversationId = data.conversation.id;
+      loadChatMessages(currentConversationId);
+      startChatPolling(currentConversationId);
+    } else {
+      const wrap = document.getElementById('chatMessages');
+      if (wrap) wrap.innerHTML = '<div class="subtitle" style="text-align:center;">ابدأ المحادثة بأول رسالة</div>';
+    }
   } catch (err) {
-    currentConversationId = null;
     showToast(err.message || 'تعذر فتح المحادثة');
   }
 }
@@ -1067,8 +1128,12 @@ var currentPubProfileRatingChoice = 0;
 function reviewRowHTML(r) {
   const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
   const date = new Date(r.createdAt).toLocaleDateString('ar-EG');
+  const currentUser = getCurrentUser();
+  const fromUserId = r.fromUser ? r.fromUser.id : null;
+  const isSelf = currentUser && fromUserId === currentUser.id;
+  const clickHandler = (fromUserId && !isSelf) ? "openRealPublicProfile('" + fromUserId + "')" : '';
   return (
-    '<div class="list-row" style="align-items:flex-start;">' +
+    '<div class="list-row" style="align-items:flex-start;' + (clickHandler ? ' cursor:pointer;' : '') + '"' + (clickHandler ? ' onclick="' + clickHandler + '"' : '') + '>' +
     '<div style="flex:1;">' +
     '<div style="display:flex; justify-content:space-between;">' +
     '<span style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (r.fromUser ? r.fromUser.fullName : 'مستخدم') + '</span>' +
@@ -1114,6 +1179,13 @@ async function loadMyReviews() {
     wrap.innerHTML = reviews.length
       ? reviews.map(reviewRowHTML).join('')
       : '<div class="subtitle" style="text-align:center;">لسه محدش قيّمك</div>';
+
+    // حدّث رقم التقييم والعدد فورًا من غير ما نستنى خروج ودخول تاني
+    const avg = reviews.length ? (reviews.reduce(function (s, r) { return s + r.rating; }, 0) / reviews.length) : 0;
+    const ratingStat = document.getElementById('profileRatingStat');
+    const reviewsStat = document.getElementById('profileReviewsStat');
+    if (ratingStat) ratingStat.textContent = avg.toFixed(1);
+    if (reviewsStat) reviewsStat.textContent = reviews.length;
   } catch (err) {
     wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل التقييمات</div>';
   }

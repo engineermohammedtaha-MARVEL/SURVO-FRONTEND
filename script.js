@@ -323,6 +323,7 @@ document.addEventListener('visibilitychange', function(){
 forceLogoutIfAwayTooLong();
 function openChat(name, initials){
   if(typeof currentConversationId !== 'undefined') currentConversationId = null;
+  if(typeof currentChatOtherUserId !== 'undefined') currentChatOtherUserId = null;
   document.getElementById('chatRecipientName').textContent = name;
   document.getElementById('chatAvatar').textContent = initials || name.trim().slice(0,2);
   var wrap = document.getElementById('chatMessages');
@@ -334,9 +335,18 @@ async function sendChatMessage(){
   var text = box.value.trim();
   if(!text) return;
 
-  if(typeof currentConversationId !== 'undefined' && currentConversationId && typeof apiRequest === 'function'){
+  if(typeof currentChatOtherUserId !== 'undefined' && currentChatOtherUserId && typeof apiRequest === 'function'){
     box.value = '';
     try{
+      // أول رسالة فعلية هي اللي بتنشئ المحادثة الحقيقية، مش مجرد فتح شاشة الشات
+      if(!currentConversationId){
+        var convData = await apiRequest('/chat/conversations', {
+          method: 'POST',
+          body: JSON.stringify({ userId: currentChatOtherUserId }),
+        });
+        currentConversationId = convData.conversation.id;
+        if(typeof startChatPolling === 'function') startChatPolling(currentConversationId);
+      }
       await apiRequest('/chat/conversations/' + currentConversationId + '/messages', {
         method: 'POST',
         body: JSON.stringify({ body: text }),
