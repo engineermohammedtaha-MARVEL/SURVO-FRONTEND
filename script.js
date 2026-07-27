@@ -278,12 +278,49 @@ function openPublicProfile(key){
 function callSeller(phone){
   window.location.href = 'tel:+' + phone;
 }
+function clearLoginFields(){
+  var emailInput = document.getElementById('loginEmailInput');
+  var passInput = document.getElementById('loginPasswordInput');
+  if(emailInput) emailInput.value = '';
+  if(passInput) passInput.value = '';
+}
 function logoutUser(){
   if(!confirm('متأكد إنك عايز تسجّل الخروج؟')) return;
   if(typeof clearAuthToken === 'function') clearAuthToken();
+  clearLoginFields();
   showPage('login');
   showToast('تم تسجيل الخروج');
 }
+
+// لو الابليكيشن اتساب في الخلفية (أو اتقفل) لمدة تعدّي الحد ده، نطلب تسجيل دخول جديد
+var AWAY_LOGOUT_THRESHOLD_MS = 10 * 1000;
+var AWAY_LAST_ACTIVE_KEY = 'survo_last_active_ts';
+
+function markAppActiveNow(){
+  try { localStorage.setItem(AWAY_LAST_ACTIVE_KEY, String(Date.now())); } catch(e){}
+}
+
+function forceLogoutIfAwayTooLong(){
+  var lastActive = 0;
+  try { lastActive = Number(localStorage.getItem(AWAY_LAST_ACTIVE_KEY) || 0); } catch(e){}
+  if(!lastActive) return;
+  var awayMs = Date.now() - lastActive;
+  if(awayMs > AWAY_LOGOUT_THRESHOLD_MS && typeof getAuthToken === 'function' && getAuthToken()){
+    if(typeof clearAuthToken === 'function') clearAuthToken();
+    clearLoginFields();
+    showPage('login');
+  }
+}
+
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden'){
+    markAppActiveNow();
+  }else if(document.visibilityState === 'visible'){
+    forceLogoutIfAwayTooLong();
+    markAppActiveNow();
+  }
+});
+forceLogoutIfAwayTooLong();
 function openChat(name, initials){
   if(typeof currentConversationId !== 'undefined') currentConversationId = null;
   document.getElementById('chatRecipientName').textContent = name;
