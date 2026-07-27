@@ -95,7 +95,7 @@
           <option value="شمال سيناء">شمال سيناء</option>
           <option value="سوهاج">سوهاج</option>
         </select>
-        <div class="section-label">قريب منك — القاهرة الكبرى</div>
+        <div class="section-label" id="homeSectionLabel">قريب منك — كل المحافظات</div>
         <div class="grid2" id="homeListingsGrid">
           <div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">بتحمّل الأجهزة القريبة منك...</div>
         </div>
@@ -744,6 +744,11 @@
         <div class="section-label">نبذة</div>
         <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.8; margin-bottom:16px;" id="profileBio">مهندس مساحة خبره 14 سنه في مشاريع الطرق والبنية التحتية والمشاريع الإنشائية، مع إجادة تامة للأجهزة المساحية وأعمال المكتب الفني.</p>
 
+        <div class="section-label">تقييمات المستخدمين لك</div>
+        <div id="profileReviewsList" style="margin-bottom:16px;">
+          <div class="subtitle" style="text-align:center;">بتحمّل...</div>
+        </div>
+
         <div class="btn-row" style="margin-bottom:8px;">
           <button class="btn btn-primary btn-block" onclick="openEditProfile()">✏️ تعديل البيانات</button>
         </div>
@@ -1237,13 +1242,13 @@
       <button class="nav-item" data-nav="requesthub" onclick="showPage('requesthub')"><div class="nav-ico">☰</div>طلب</button>
       <button class="nav-item" data-nav="myequip" onclick="showPage('myequip'); loadMyEquipment()"><div class="nav-ico">▦</div>عرض</button>
       <button class="nav-item" data-nav="protection" onclick="showPage('protection')"><div class="nav-ico">🛡</div>حماية الأجهزة</button>
-      <button class="nav-item" data-nav="profile" onclick="showPage('profile')"><div class="nav-ico">◍</div>حسابي</button>
+      <button class="nav-item" data-nav="profile" onclick="showPage('profile'); loadMyReviews()"><div class="nav-ico">◍</div>حسابي</button>
     </div>
   </div>
 </div>
 
-<script src="api.js?v=16"></script>
-<script src="script.js?v=16"></script>
+<script src="api.js?v=17"></script>
+<script src="script.js?v=17"></script>
 
 </body>
 </html>

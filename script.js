@@ -85,23 +85,15 @@ function showToast(msg){
 })();
 var currentCategoryFilter = 'all';
 var currentLocationFilter = 'all';
-function applyHomeFilters(){
-  document.querySelectorAll('#page-home .item-card').forEach(function(card){
-    var matchesCat = (currentCategoryFilter === 'all') || (card.getAttribute('data-cat') === currentCategoryFilter);
-    var locEl = card.querySelector('.item-loc');
-    var matchesLoc = (currentLocationFilter === 'all') || (locEl && locEl.textContent.indexOf(currentLocationFilter) !== -1);
-    card.style.display = (matchesCat && matchesLoc) ? '' : 'none';
-  });
-}
 function filterListings(cat, chipEl){
   document.querySelectorAll('#page-home .chip').forEach(function(c){ c.classList.remove('on'); });
   chipEl.classList.add('on');
   currentCategoryFilter = cat;
-  applyHomeFilters();
+  if(typeof loadHomeEquipment === 'function') loadHomeEquipment();
 }
 function filterByLocation(loc){
   currentLocationFilter = loc;
-  applyHomeFilters();
+  if(typeof loadHomeEquipment === 'function') loadHomeEquipment();
 }
 
 var workTypeOptionsByJob = {

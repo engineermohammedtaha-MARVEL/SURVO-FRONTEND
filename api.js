@@ -448,7 +448,7 @@ function jobCardHTML(item) {
     : "openChatWithUser('" + poster.id + "', '" + (poster.fullName || '').replace(/'/g, "\\'") + "')";
 
   return (
-    '<div class="item-card card" onclick="' + clickHandler + '">' +
+    '<div class="item-card card" data-cat="jobs" onclick="' + clickHandler + '">' +
     '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">💼</div>' +
     '<span class="badge" style="background:#E9F7EF; color:var(--green);">وظيفة</span>' +
     '<div class="item-name">' + item.title + '</div>' +
@@ -458,14 +458,41 @@ function jobCardHTML(item) {
   );
 }
 
+function buildQuery(params) {
+  const qs = Object.keys(params)
+    .filter(function (k) { return params[k] !== undefined && params[k] !== null && params[k] !== ''; })
+    .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+    .join('&');
+  return qs ? '?' + qs : '';
+}
+
+function updateHomeSectionLabel(cat, loc) {
+  const label = document.getElementById('homeSectionLabel');
+  if (!label) return;
+  const catText = (cat === 'jobs') ? 'الوظائف' : (CATEGORY_LABELS[cat] || 'قريب منك');
+  const locText = (loc && loc !== 'all') ? loc : 'كل المحافظات';
+  label.textContent = catText + ' — ' + locText;
+}
+
 async function loadHomeEquipment() {
   const grid = document.getElementById('homeListingsGrid');
   if (!grid) return;
+
+  const cat = (typeof currentCategoryFilter !== 'undefined') ? currentCategoryFilter : 'all';
+  const loc = (typeof currentLocationFilter !== 'undefined') ? currentLocationFilter : 'all';
+  updateHomeSectionLabel(cat, loc);
+
+  const isDeviceCategory = cat !== 'all' && cat !== 'jobs';
+  const showEquipmentAndRequests = cat !== 'jobs';
+  const showJobs = cat === 'all' || cat === 'jobs';
+  const governorate = loc !== 'all' ? loc : undefined;
+  const category = isDeviceCategory ? cat : undefined;
+
   try {
     const [equipRes, requestsRes, jobsRes] = await Promise.allSettled([
-      apiRequest('/equipment?pageSize=20'),
-      apiRequest('/requests'),
-      apiRequest('/jobs'),
+      showEquipmentAndRequests ? apiRequest('/equipment' + buildQuery({ pageSize: 20, category: category, governorate: governorate })) : Promise.resolve({ items: [] }),
+      showEquipmentAndRequests ? apiRequest('/requests' + buildQuery({ category: category, governorate: governorate })) : Promise.resolve({ items: [] }),
+      showJobs ? apiRequest('/jobs' + buildQuery({ governorate: governorate })) : Promise.resolve({ items: [] }),
     ]);
 
     const equipment = (equipRes.status === 'fulfilled' && equipRes.value.items || []).map(function (item) {
@@ -483,7 +510,7 @@ async function loadHomeEquipment() {
     });
 
     if (!merged.length) {
-      grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش إعلانات قريب منك دلوقتي</div>';
+      grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش إعلانات مطابقة دلوقتي</div>';
       return;
     }
 
@@ -1062,6 +1089,31 @@ async function loadPubReviews(userId) {
     wrap.innerHTML = reviews.length
       ? reviews.map(reviewRowHTML).join('')
       : '<div class="subtitle" style="text-align:center;">لسه مفيش تقييمات</div>';
+
+    // حدّث متوسط التقييم والعدد فورًا من نفس البيانات، من غير ما نستنى ريفرش أو دخول تاني
+    if (currentPubProfileUserId === userId) {
+      const avg = reviews.length ? (reviews.reduce(function (s, r) { return s + r.rating; }, 0) / reviews.length) : 0;
+      const ratingEl = document.getElementById('pubRating');
+      const reviewsEl = document.getElementById('pubReviews');
+      if (ratingEl) ratingEl.textContent = avg.toFixed(1);
+      if (reviewsEl) reviewsEl.textContent = reviews.length;
+    }
+  } catch (err) {
+    wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل التقييمات</div>';
+  }
+}
+
+async function loadMyReviews() {
+  const wrap = document.getElementById('profileReviewsList');
+  if (!wrap) return;
+  const me = getCurrentUser();
+  if (!me) return;
+  try {
+    const data = await apiRequest('/reviews/user/' + me.id);
+    const reviews = (data && data.reviews) || [];
+    wrap.innerHTML = reviews.length
+      ? reviews.map(reviewRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center;">لسه محدش قيّمك</div>';
   } catch (err) {
     wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل التقييمات</div>';
   }
