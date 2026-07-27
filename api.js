@@ -396,61 +396,97 @@ function equipmentCardHTML(item) {
   );
 }
 
+function fillListingDetailContact(person) {
+  const initials = (person.fullName || 'م ص').trim().slice(0, 2);
+  document.getElementById('equipDetailOwnerAvatar').textContent = initials;
+  document.getElementById('equipDetailOwnerName').textContent = person.fullName || 'مستخدم';
+  document.getElementById('equipDetailOwnerRating').textContent = Number(person.rating || 0).toFixed(1);
+
+  const verifiedBadge = document.getElementById('equipDetailOwnerVerified');
+  verifiedBadge.style.display = person.verification === 'verified' ? '' : 'none';
+
+  const ownerRow = document.getElementById('equipDetailOwnerRow');
+  ownerRow.setAttribute('onclick', "openRealPublicProfile('" + person.id + "')");
+
+  const msgBtn = document.getElementById('equipDetailMsgBtn');
+  msgBtn.setAttribute('onclick', "openChatWithUser('" + person.id + "', '" + (person.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
+
+  const callBtn = document.getElementById('equipDetailCallBtn');
+  callBtn.setAttribute('onclick', "callSeller('" + (person.phone || '') + "')");
+}
+
 async function openEquipmentDetail(itemId) {
+  return openListingDetail('equipment', itemId);
+}
+
+async function openListingDetail(type, itemId) {
   if (!itemId) return;
   showPage('equipment-detail');
 
+  const pageTitle = document.getElementById('equipDetailPageTitle');
+  if (pageTitle) pageTitle.textContent = type === 'job' ? 'تفاصيل الوظيفة' : type === 'request' ? 'تفاصيل الطلب' : 'تفاصيل الجهاز';
+
   document.getElementById('equipDetailTitle').textContent = 'بتحمّل...';
   document.getElementById('equipDetailThumb').style.backgroundImage = '';
+  document.getElementById('equipDetailThumb').textContent = '';
+
+  const endpoint = type === 'equipment' ? '/equipment/' : type === 'job' ? '/jobs/' : '/requests/';
+  const errorText = type === 'equipment' ? 'تعذر تحميل تفاصيل الجهاز' : type === 'job' ? 'تعذر تحميل تفاصيل الوظيفة' : 'تعذر تحميل تفاصيل الطلب';
 
   try {
-    const data = await apiRequest('/equipment/' + itemId);
+    const data = await apiRequest(endpoint + itemId);
     const item = data.item;
-    const owner = item.owner || {};
-    const isRent = item.listingType === 'rent';
 
     const thumbEl = document.getElementById('equipDetailThumb');
-    if (item.images && item.images[0]) {
-      thumbEl.style.backgroundImage = 'url(' + item.images[0] + ')';
-      thumbEl.textContent = '';
-    } else {
-      thumbEl.style.backgroundImage = '';
-      thumbEl.textContent = '🛠️';
-    }
-
     const badgeEl = document.getElementById('equipDetailBadge');
-    badgeEl.textContent = isRent ? 'للإيجار' : 'للبيع';
-    badgeEl.className = 'badge ' + (isRent ? 'badge-rent' : 'badge-sale');
 
-    document.getElementById('equipDetailTitle').textContent = item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة';
-    document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
-
-    const price = isRent
-      ? (item.pricePerDay ? Number(item.pricePerDay).toLocaleString('ar-EG') + ' ج / يوم' : 'السعر عند الطلب')
-      : (item.salePrice ? Number(item.salePrice).toLocaleString('ar-EG') + ' ج' : 'السعر عند الطلب');
-    document.getElementById('equipDetailPrice').textContent = price;
-
-    document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
-
-    const initials = (owner.fullName || 'م ص').trim().slice(0, 2);
-    document.getElementById('equipDetailOwnerAvatar').textContent = initials;
-    document.getElementById('equipDetailOwnerName').textContent = owner.fullName || 'مستخدم';
-    document.getElementById('equipDetailOwnerRating').textContent = Number(owner.rating || 0).toFixed(1);
-
-    const verifiedBadge = document.getElementById('equipDetailOwnerVerified');
-    verifiedBadge.style.display = owner.verification === 'verified' ? '' : 'none';
-
-    const ownerRow = document.getElementById('equipDetailOwnerRow');
-    ownerRow.setAttribute('onclick', "openRealPublicProfile('" + owner.id + "')");
-
-    const msgBtn = document.getElementById('equipDetailMsgBtn');
-    msgBtn.setAttribute('onclick', "openChatWithUser('" + owner.id + "', '" + (owner.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
-
-    const callBtn = document.getElementById('equipDetailCallBtn');
-    callBtn.setAttribute('onclick', "callSeller('" + (owner.phone || '') + "')");
+    if (type === 'equipment') {
+      const isRent = item.listingType === 'rent';
+      if (item.images && item.images[0]) {
+        thumbEl.style.backgroundImage = 'url(' + item.images[0] + ')';
+      } else {
+        thumbEl.textContent = '🛠️';
+      }
+      badgeEl.textContent = isRent ? 'للإيجار' : 'للبيع';
+      badgeEl.className = 'badge ' + (isRent ? 'badge-rent' : 'badge-sale');
+      document.getElementById('equipDetailTitle').textContent = item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة';
+      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+      const price = isRent
+        ? (item.pricePerDay ? formatMoney(item.pricePerDay, ' ج / يوم') : 'السعر عند الطلب')
+        : (item.salePrice ? formatMoney(item.salePrice, ' ج') : 'السعر عند الطلب');
+      document.getElementById('equipDetailPrice').textContent = price;
+      document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
+      fillListingDetailContact(item.owner || {});
+    } else if (type === 'job') {
+      thumbEl.textContent = '💼';
+      badgeEl.textContent = 'وظيفة';
+      badgeEl.className = 'badge';
+      document.getElementById('equipDetailTitle').textContent = item.title;
+      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+      document.getElementById('equipDetailPrice').textContent = item.salary
+        ? formatMoney(item.salary, ' ج')
+        : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '—');
+      document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
+      fillListingDetailContact(item.poster || {});
+    } else {
+      thumbEl.textContent = '📨';
+      badgeEl.textContent = 'طلب';
+      badgeEl.className = 'badge';
+      document.getElementById('equipDetailTitle').textContent = 'طلب: ' + (CATEGORY_LABELS[item.category] || item.category);
+      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+      let priceText = item.type === 'rent' ? 'إيجار' : 'شراء';
+      if (item.type === 'rent' && item.dateFrom && item.dateTo) {
+        priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
+      } else if (item.budget) {
+        priceText += ' — ' + formatMoney(item.budget, ' ج');
+      }
+      document.getElementById('equipDetailPrice').textContent = priceText;
+      document.getElementById('equipDetailDesc').textContent = item.details || 'لا يوجد تفاصيل إضافية';
+      fillListingDetailContact(item.requester || {});
+    }
   } catch (err) {
-    document.getElementById('equipDetailTitle').textContent = 'تعذر تحميل تفاصيل الجهاز';
-    showToast(err.message || 'تعذر تحميل تفاصيل الجهاز');
+    document.getElementById('equipDetailTitle').textContent = errorText;
+    showToast(err.message || errorText);
   }
 }
 
@@ -477,7 +513,7 @@ function requestCardHTML(item) {
   const isOwn = currentUser && requester.id === currentUser.id;
   const clickHandler = isOwn
     ? "showToast('ده طلبك انت')"
-    : "openChatWithUser('" + requester.id + "', '" + (requester.fullName || '').replace(/'/g, "\\'") + "')";
+    : "openListingDetail('request', '" + item.id + "')";
 
   let priceText = typeLabel;
   if (item.type === 'rent' && item.dateFrom && item.dateTo) {
@@ -503,7 +539,7 @@ function jobCardHTML(item) {
   const isOwn = currentUser && poster.id === currentUser.id;
   const clickHandler = isOwn
     ? "showToast('ده إعلانك انت')"
-    : "openChatWithUser('" + poster.id + "', '" + (poster.fullName || '').replace(/'/g, "\\'") + "')";
+    : "openListingDetail('job', '" + item.id + "')";
 
   return (
     '<div class="item-card card" data-cat="jobs" onclick="' + clickHandler + '">' +
