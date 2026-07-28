@@ -293,7 +293,7 @@ function logoutUser(){
 }
 
 // لو الابليكيشن اتساب في الخلفية (أو اتقفل) لمدة تعدّي الحد ده، نطلب تسجيل دخول جديد
-var AWAY_LOGOUT_THRESHOLD_MS = 10 * 1000;
+var AWAY_LOGOUT_THRESHOLD_MS = 60 * 1000;
 var AWAY_LAST_ACTIVE_KEY = 'survo_last_active_ts';
 
 function markAppActiveNow(){
