@@ -428,11 +428,17 @@ function cacheListingDetail(type, item) {
   listingDetailCache[type + ':' + item.id] = item;
 }
 
+var currentDetailType = null;
+var currentDetailId = null;
+
 function renderListingDetail(type, item) {
   const thumbEl = document.getElementById('equipDetailThumb');
   const badgeEl = document.getElementById('equipDetailBadge');
   thumbEl.style.backgroundImage = '';
   thumbEl.textContent = '';
+
+  currentDetailType = type;
+  currentDetailId = item.id;
 
   if (type === 'equipment') {
     const isRent = item.listingType === 'rent';
@@ -451,6 +457,7 @@ function renderListingDetail(type, item) {
     document.getElementById('equipDetailPrice').textContent = price;
     document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
     fillListingDetailContact(item.owner || {});
+    toggleListingOwnRow(false);
   } else if (type === 'job') {
     thumbEl.textContent = '💼';
     badgeEl.textContent = 'وظيفة';
@@ -462,6 +469,7 @@ function renderListingDetail(type, item) {
       : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '—');
     document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
     fillListingDetailContact(item.poster || {});
+    toggleListingOwnRow(false);
   } else {
     thumbEl.textContent = '📨';
     badgeEl.textContent = 'طلب';
@@ -476,7 +484,32 @@ function renderListingDetail(type, item) {
     }
     document.getElementById('equipDetailPrice').textContent = priceText;
     document.getElementById('equipDetailDesc').textContent = item.details || 'لا يوجد تفاصيل إضافية';
-    fillListingDetailContact(item.requester || {});
+    const requester = item.requester || {};
+    const currentUser = getCurrentUser();
+    const isOwnRequest = !!(currentUser && requester.id && requester.id === currentUser.id);
+    fillListingDetailContact(requester);
+    toggleListingOwnRow(isOwnRequest);
+  }
+}
+
+function toggleListingOwnRow(isOwn) {
+  const contactRow = document.getElementById('equipDetailContactRow');
+  const ownRow = document.getElementById('equipDetailOwnRow');
+  if (contactRow) contactRow.style.display = isOwn ? 'none' : '';
+  if (ownRow) ownRow.style.display = isOwn ? '' : 'none';
+}
+
+async function deleteMyRequest() {
+  if (currentDetailType !== 'request' || !currentDetailId) return;
+  if (!confirm('متأكد إنك عايز تحذف الطلب ده؟')) return;
+  try {
+    await apiRequest('/requests/' + currentDetailId, { method: 'DELETE' });
+    showToast('تم حذف الطلب ✓');
+    delete listingDetailCache['request:' + currentDetailId];
+    showPage('home');
+    loadHomeEquipment();
+  } catch (err) {
+    showToast(err.message || 'تعذر حذف الطلب');
   }
 }
 
@@ -534,12 +567,7 @@ function formatMoney(value, suffix) {
 
 function requestCardHTML(item) {
   const typeLabel = item.type === 'rent' ? 'إيجار' : 'شراء';
-  const currentUser = getCurrentUser();
-  const requester = item.requester || {};
-  const isOwn = currentUser && requester.id === currentUser.id;
-  const clickHandler = isOwn
-    ? "showToast('ده طلبك انت')"
-    : "openListingDetail('request', '" + item.id + "')";
+  const clickHandler = "openListingDetail('request', '" + item.id + "')";
 
   let priceText = typeLabel;
   if (item.type === 'rent' && item.dateFrom && item.dateTo) {
