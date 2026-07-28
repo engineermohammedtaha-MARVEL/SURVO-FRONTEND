@@ -298,6 +298,7 @@ async function loginUser() {
     setCurrentUser(data.user);
     renderUserProfile(data.user);
     refreshCurrentUser();
+    startNotificationPolling();
     showToast('تم تسجيل الدخول ✓');
     setTimeout(function () { showPage('home'); }, 500);
   } catch (err) {
@@ -1017,6 +1018,55 @@ async function submitSupportTicket() {
 // NOTIFICATIONS (page-notifications)
 // ============================================================
 
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.4);
+  } catch (e) { /* الصوت مش أساسي لعمل التطبيق، تجاهل أي خطأ (مثلاً متصفح مش بيدعمه) */ }
+}
+
+var NOTIF_LAST_SEEN_KEY = 'survo_last_seen_notification_id';
+var notifPollTimer = null;
+
+async function checkForNewNotifications() {
+  if (!getAuthToken()) return;
+  try {
+    const data = await apiRequest('/support/notifications');
+    const notifications = (data && data.notifications) || [];
+
+    const dot = document.getElementById('notifDot');
+    if (dot) dot.style.display = notifications.some(function (n) { return !n.readAt; }) ? '' : 'none';
+
+    if (!notifications.length) return;
+    const latestId = notifications[0].id;
+    const lastSeenId = localStorage.getItem(NOTIF_LAST_SEEN_KEY);
+    if (lastSeenId && lastSeenId !== latestId) {
+      playNotificationSound();
+    }
+    localStorage.setItem(NOTIF_LAST_SEEN_KEY, latestId);
+  } catch (err) { /* أخطاء الشبكة هنا مش مهمة نزعج بيها المستخدم */ }
+}
+
+function startNotificationPolling() {
+  if (notifPollTimer) return;
+  checkForNewNotifications();
+  notifPollTimer = setInterval(checkForNewNotifications, 20000);
+}
+
+function stopNotificationPolling() {
+  if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
+}
+
 function notificationRowHTML(n) {
   const isRead = !!n.readAt;
   const contactBtn = (n.contactUser && n.contactUser.id)
@@ -1423,5 +1473,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if (getAuthToken()) {
     renderUserProfile(getCurrentUser());
     refreshCurrentUser();
+    startNotificationPolling();
   }
 });

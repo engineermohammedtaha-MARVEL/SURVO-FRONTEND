@@ -287,6 +287,7 @@ function clearLoginFields(){
 function logoutUser(){
   if(!confirm('متأكد إنك عايز تسجّل الخروج؟')) return;
   if(typeof clearAuthToken === 'function') clearAuthToken();
+  if(typeof stopNotificationPolling === 'function') stopNotificationPolling();
   clearLoginFields();
   showPage('login');
   showToast('تم تسجيل الخروج');
@@ -307,6 +308,7 @@ function forceLogoutIfAwayTooLong(){
   var awayMs = Date.now() - lastActive;
   if(awayMs > AWAY_LOGOUT_THRESHOLD_MS && typeof getAuthToken === 'function' && getAuthToken()){
     if(typeof clearAuthToken === 'function') clearAuthToken();
+    if(typeof stopNotificationPolling === 'function') stopNotificationPolling();
     clearLoginFields();
     showPage('login');
   }
