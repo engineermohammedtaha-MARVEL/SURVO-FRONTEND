@@ -419,6 +419,66 @@ async function openEquipmentDetail(itemId) {
   return openListingDetail('equipment', itemId);
 }
 
+// كاش بسيط بالإعلانات اللي ظهرت في الصفحة الرئيسية، عشان فتح تفاصيل الإعلان
+// يبقى فوري من غير أي استنى شبكة — بيانات الكارت أصلاً فيها كل حاجة تقريبًا
+var listingDetailCache = {};
+function cacheListingDetail(type, item) {
+  if (!item || !item.id) return;
+  listingDetailCache[type + ':' + item.id] = item;
+}
+
+function renderListingDetail(type, item) {
+  const thumbEl = document.getElementById('equipDetailThumb');
+  const badgeEl = document.getElementById('equipDetailBadge');
+  thumbEl.style.backgroundImage = '';
+  thumbEl.textContent = '';
+
+  if (type === 'equipment') {
+    const isRent = item.listingType === 'rent';
+    if (item.images && item.images[0]) {
+      thumbEl.style.backgroundImage = 'url(' + item.images[0] + ')';
+    } else {
+      thumbEl.textContent = '🛠️';
+    }
+    badgeEl.textContent = isRent ? 'للإيجار' : 'للبيع';
+    badgeEl.className = 'badge ' + (isRent ? 'badge-rent' : 'badge-sale');
+    document.getElementById('equipDetailTitle').textContent = item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة';
+    document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+    const price = isRent
+      ? (item.pricePerDay ? formatMoney(item.pricePerDay, ' ج / يوم') : 'السعر عند الطلب')
+      : (item.salePrice ? formatMoney(item.salePrice, ' ج') : 'السعر عند الطلب');
+    document.getElementById('equipDetailPrice').textContent = price;
+    document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
+    fillListingDetailContact(item.owner || {});
+  } else if (type === 'job') {
+    thumbEl.textContent = '💼';
+    badgeEl.textContent = 'وظيفة';
+    badgeEl.className = 'badge';
+    document.getElementById('equipDetailTitle').textContent = item.title;
+    document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+    document.getElementById('equipDetailPrice').textContent = item.salary
+      ? formatMoney(item.salary, ' ج')
+      : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '—');
+    document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
+    fillListingDetailContact(item.poster || {});
+  } else {
+    thumbEl.textContent = '📨';
+    badgeEl.textContent = 'طلب';
+    badgeEl.className = 'badge';
+    document.getElementById('equipDetailTitle').textContent = 'طلب: ' + (CATEGORY_LABELS[item.category] || item.category);
+    document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
+    let priceText = item.type === 'rent' ? 'إيجار' : 'شراء';
+    if (item.type === 'rent' && item.dateFrom && item.dateTo) {
+      priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
+    } else if (item.budget) {
+      priceText += ' — ' + formatMoney(item.budget, ' ج');
+    }
+    document.getElementById('equipDetailPrice').textContent = priceText;
+    document.getElementById('equipDetailDesc').textContent = item.details || 'لا يوجد تفاصيل إضافية';
+    fillListingDetailContact(item.requester || {});
+  }
+}
+
 async function openListingDetail(type, itemId) {
   if (!itemId) return;
   showPage('equipment-detail');
@@ -426,64 +486,29 @@ async function openListingDetail(type, itemId) {
   const pageTitle = document.getElementById('equipDetailPageTitle');
   if (pageTitle) pageTitle.textContent = type === 'job' ? 'تفاصيل الوظيفة' : type === 'request' ? 'تفاصيل الطلب' : 'تفاصيل الجهاز';
 
+  const endpoint = type === 'equipment' ? '/equipment/' : type === 'job' ? '/jobs/' : '/requests/';
+  const errorText = type === 'equipment' ? 'تعذر تحميل تفاصيل الجهاز' : type === 'job' ? 'تعذر تحميل تفاصيل الوظيفة' : 'تعذر تحميل تفاصيل الطلب';
+  const cached = listingDetailCache[type + ':' + itemId];
+
+  if (cached) {
+    // عندنا البيانات فعلاً من الصفحة الرئيسية — نعرضها فورًا من غير أي لودينج
+    renderListingDetail(type, cached);
+    // وبعدين نحدّثها بهدوء في الخلفية من غير ما نوري أي مؤشر تحميل
+    apiRequest(endpoint + itemId).then(function (data) {
+      cacheListingDetail(type, data.item);
+      renderListingDetail(type, data.item);
+    }).catch(function () { /* عندنا نسخة شغالة من الكاش، مفيش داعي نزعج المستخدم */ });
+    return;
+  }
+
   document.getElementById('equipDetailTitle').textContent = 'بتحمّل...';
   document.getElementById('equipDetailThumb').style.backgroundImage = '';
   document.getElementById('equipDetailThumb').textContent = '';
 
-  const endpoint = type === 'equipment' ? '/equipment/' : type === 'job' ? '/jobs/' : '/requests/';
-  const errorText = type === 'equipment' ? 'تعذر تحميل تفاصيل الجهاز' : type === 'job' ? 'تعذر تحميل تفاصيل الوظيفة' : 'تعذر تحميل تفاصيل الطلب';
-
   try {
     const data = await apiRequest(endpoint + itemId);
-    const item = data.item;
-
-    const thumbEl = document.getElementById('equipDetailThumb');
-    const badgeEl = document.getElementById('equipDetailBadge');
-
-    if (type === 'equipment') {
-      const isRent = item.listingType === 'rent';
-      if (item.images && item.images[0]) {
-        thumbEl.style.backgroundImage = 'url(' + item.images[0] + ')';
-      } else {
-        thumbEl.textContent = '🛠️';
-      }
-      badgeEl.textContent = isRent ? 'للإيجار' : 'للبيع';
-      badgeEl.className = 'badge ' + (isRent ? 'badge-rent' : 'badge-sale');
-      document.getElementById('equipDetailTitle').textContent = item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة';
-      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
-      const price = isRent
-        ? (item.pricePerDay ? formatMoney(item.pricePerDay, ' ج / يوم') : 'السعر عند الطلب')
-        : (item.salePrice ? formatMoney(item.salePrice, ' ج') : 'السعر عند الطلب');
-      document.getElementById('equipDetailPrice').textContent = price;
-      document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
-      fillListingDetailContact(item.owner || {});
-    } else if (type === 'job') {
-      thumbEl.textContent = '💼';
-      badgeEl.textContent = 'وظيفة';
-      badgeEl.className = 'badge';
-      document.getElementById('equipDetailTitle').textContent = item.title;
-      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
-      document.getElementById('equipDetailPrice').textContent = item.salary
-        ? formatMoney(item.salary, ' ج')
-        : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '—');
-      document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
-      fillListingDetailContact(item.poster || {});
-    } else {
-      thumbEl.textContent = '📨';
-      badgeEl.textContent = 'طلب';
-      badgeEl.className = 'badge';
-      document.getElementById('equipDetailTitle').textContent = 'طلب: ' + (CATEGORY_LABELS[item.category] || item.category);
-      document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
-      let priceText = item.type === 'rent' ? 'إيجار' : 'شراء';
-      if (item.type === 'rent' && item.dateFrom && item.dateTo) {
-        priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
-      } else if (item.budget) {
-        priceText += ' — ' + formatMoney(item.budget, ' ج');
-      }
-      document.getElementById('equipDetailPrice').textContent = priceText;
-      document.getElementById('equipDetailDesc').textContent = item.details || 'لا يوجد تفاصيل إضافية';
-      fillListingDetailContact(item.requester || {});
-    }
+    cacheListingDetail(type, data.item);
+    renderListingDetail(type, data.item);
   } catch (err) {
     document.getElementById('equipDetailTitle').textContent = errorText;
     showToast(err.message || errorText);
@@ -607,6 +632,8 @@ async function loadHomeEquipment() {
       grid.innerHTML = '<div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">مفيش إعلانات مطابقة دلوقتي</div>';
       return;
     }
+
+    merged.forEach(function (entry) { cacheListingDetail(entry._type, entry.item); });
 
     grid.innerHTML = merged.map(function (entry) {
       if (entry._type === 'equipment') return equipmentCardHTML(entry.item);
