@@ -844,7 +844,7 @@ async function submitAddEquipment() {
   const listingType = typeBtn ? typeBtn.getAttribute('data-listingtype') : 'rent';
 
   const category = (document.getElementById('addEquipCategory') || {}).value || 'totalstation';
-  const brand = (document.getElementById('addEquipBrand') || {}).value || '';
+  const brand = getBrandFieldValue('addEquipBrand', 'addEquipBrandOtherInput');
   const model = (document.getElementById('addEquipModel') || {}).value || '';
   const priceInput = document.getElementById('addEquipPrice');
   const price = priceInput ? priceInput.value : '';
