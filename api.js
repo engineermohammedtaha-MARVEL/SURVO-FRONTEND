@@ -368,6 +368,14 @@ const CATEGORY_LABELS = {
   accessories: 'اكسسوارات',
 };
 
+// كاش بيانات المستخدمين الجزئية اللي بتظهر جوه كروت الإعلانات/الطلبات/الوظائف/المحادثات/التقييمات،
+// عشان فتح البروفايل العام يبقى فوري من غير أي استنى شبكة (نفس فكرة كاش تفاصيل الإعلان)
+var publicProfileCache = {};
+function cachePartialProfile(user) {
+  if (!user || !user.id) return;
+  publicProfileCache[user.id] = Object.assign({}, publicProfileCache[user.id] || {}, user);
+}
+
 function equipmentCardHTML(item) {
   const isRent = item.listingType === 'rent';
   const price = isRent
@@ -380,6 +388,7 @@ function equipmentCardHTML(item) {
     : '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">🛠️</div>';
 
   const owner = item.owner || {};
+  cachePartialProfile(owner);
   const currentUser = getCurrentUser();
   const isOwnListing = currentUser && owner.id === currentUser.id;
   const clickHandler = isOwnListing
@@ -566,6 +575,7 @@ function formatMoney(value, suffix) {
 }
 
 function requestCardHTML(item) {
+  cachePartialProfile(item.requester);
   const typeLabel = item.type === 'rent' ? 'إيجار' : 'شراء';
   const clickHandler = "openListingDetail('request', '" + item.id + "')";
 
@@ -590,6 +600,7 @@ function requestCardHTML(item) {
 function jobCardHTML(item) {
   const currentUser = getCurrentUser();
   const poster = item.poster || {};
+  cachePartialProfile(poster);
   const isOwn = currentUser && poster.id === currentUser.id;
   const clickHandler = isOwn
     ? "showToast('ده إعلانك انت')"
@@ -941,6 +952,41 @@ async function handleReportDocSelect(input, key, statusId) {
   }
 }
 
+function resetReportForm() {
+  const category = document.getElementById('reportCategory');
+  const brand = document.getElementById('reportBrand');
+  const serialNumber = document.getElementById('reportSerialNumber');
+  const details = document.getElementById('reportDetails');
+  const contactPhone = document.getElementById('reportContactPhone');
+  if (category) category.value = 'totalstation';
+  if (brand) brand.value = '';
+  if (serialNumber) serialNumber.value = '';
+  if (details) details.value = '';
+  if (contactPhone) contactPhone.value = '';
+
+  const statusWrap = document.getElementById('reportStatusToggle');
+  if (statusWrap) {
+    statusWrap.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.getAttribute('data-status') === 'stolen');
+    });
+  }
+
+  reportDocUrls = {};
+  const policeStatus = document.getElementById('reportPoliceDocStatus');
+  const ownershipStatus = document.getElementById('reportOwnershipDocStatus');
+  if (policeStatus) policeStatus.textContent = '⬆';
+  if (ownershipStatus) ownershipStatus.textContent = '⬆';
+}
+
+function resetInquiryForm() {
+  const brand = document.getElementById('inquiryBrandInput');
+  const serialNumber = document.getElementById('inquirySerialInput');
+  const resultEl = document.getElementById('inquiryResult');
+  if (brand) brand.value = '';
+  if (serialNumber) serialNumber.value = '';
+  if (resultEl) resultEl.innerHTML = '';
+}
+
 async function submitDeviceReport() {
   const category = (document.getElementById('reportCategory') || {}).value || 'totalstation';
   const brand = (document.getElementById('reportBrand') || {}).value || '';
@@ -970,7 +1016,7 @@ async function submitDeviceReport() {
       }),
     });
     showToast('تم إرسال البلاغ ✓ هيتم مراجعته والتأكد منه قريبًا');
-    reportDocUrls = {};
+    resetReportForm();
     setTimeout(function () { showPage('protection'); }, 1000);
   } catch (err) {
     showToast(err.message || 'حصل خطأ أثناء إرسال البلاغ');
@@ -978,17 +1024,23 @@ async function submitDeviceReport() {
 }
 
 async function submitInquiry() {
-  const input = document.getElementById('inquirySerialInput');
-  const serialNumber = input ? input.value.trim() : '';
+  const brandInput = document.getElementById('inquiryBrandInput');
+  const serialInput = document.getElementById('inquirySerialInput');
+  const brand = brandInput ? brandInput.value.trim() : '';
+  const serialNumber = serialInput ? serialInput.value.trim() : '';
   const resultEl = document.getElementById('inquiryResult');
+  if (!brand) {
+    showToast('اكتب ماركة الجهاز');
+    return;
+  }
   if (!serialNumber) {
-    showToast('اكتب الرقم التسلسلي الأول');
+    showToast('اكتب الرقم التسلسلي');
     return;
   }
   resultEl.innerHTML = '<div class="subtitle" style="text-align:center;">بيتم الاستعلام...</div>';
 
   try {
-    const data = await apiRequest('/device-reports/lookup?serialNumber=' + encodeURIComponent(serialNumber));
+    const data = await apiRequest('/device-reports/lookup?serialNumber=' + encodeURIComponent(serialNumber) + '&brand=' + encodeURIComponent(brand));
     if (data.clean) {
       resultEl.innerHTML =
         '<div class="card" style="border:1.5px solid var(--green); background:var(--green-bg); margin-bottom:10px;">' +
@@ -1097,17 +1149,28 @@ function stopNotificationPolling() {
 
 function notificationRowHTML(n) {
   const isRead = !!n.readAt;
-  const contactBtn = (n.contactUser && n.contactUser.id)
-    ? '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="event.stopPropagation(); openChatWithUser(\'' + n.contactUser.id + '\', \'' + n.contactUser.fullName.replace(/'/g, "\\'") + '\')">تواصل معاه</button>'
+  const hasContact = n.contactUser && n.contactUser.id;
+  const contactId = hasContact ? n.contactUser.id : '';
+  const contactName = hasContact ? n.contactUser.fullName.replace(/'/g, "\\'") : '';
+  const rowClickArgs = "'" + n.id + "', '" + contactId + "', '" + contactName + "'";
+  const contactBtn = hasContact
+    ? '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="event.stopPropagation(); openNotificationTarget(' + rowClickArgs + ')">تواصل معاه</button>'
     : '';
   return (
-    '<div class="list-row" style="' + (isRead ? 'opacity:0.6;' : '') + ' cursor:pointer;" onclick="markNotificationRead(\'' + n.id + '\', this)">' +
+    '<div class="list-row" style="' + (isRead ? 'opacity:0.6;' : '') + ' cursor:pointer;" onclick="openNotificationTarget(' + rowClickArgs + ')">' +
     '<span>' + (isRead ? '✓' : '🔔') + '</span>' +
     '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">' + n.title + '</div>' +
     (n.body ? '<div style="font-size:10.5px; color:var(--ink-soft);">' + n.body + '</div>' : '') +
     '</div>' + contactBtn +
     '</div>'
   );
+}
+
+function openNotificationTarget(notificationId, contactUserId, contactUserName) {
+  markNotificationRead(notificationId);
+  if (contactUserId) {
+    openChatWithUser(contactUserId, contactUserName);
+  }
 }
 
 async function loadNotifications() {
@@ -1159,13 +1222,28 @@ function chatMessageHTML(msg) {
 
 var lastLoadedChatSignature = null;
 
+// كاش آخر رسايل اتحملت لكل محادثة، عشان فتح شات اتفتح قبل كده يبقى فوري من غير لودينج
+var chatMessagesCache = {};
+
 async function loadChatMessages(conversationId, silent) {
   const wrap = document.getElementById('chatMessages');
   if (!wrap) return;
-  if (!silent) wrap.innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل الرسايل...</div>';
+
+  const cachedMessages = chatMessagesCache[conversationId];
+  if (!silent && cachedMessages) {
+    wrap.innerHTML = cachedMessages.length
+      ? cachedMessages.map(chatMessageHTML).join('')
+      : '<div class="subtitle" style="text-align:center;">ابدأ المحادثة بأول رسالة</div>';
+    wrap.scrollTop = wrap.scrollHeight;
+    silent = true; // عندنا نسخة معروضة فورًا، اللي جاي مجرد تحديث هادئ في الخلفية
+  } else if (!silent) {
+    wrap.innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل الرسايل...</div>';
+  }
+
   try {
     const data = await apiRequest('/chat/conversations/' + conversationId + '/messages');
     const messages = (data && data.messages) || [];
+    chatMessagesCache[conversationId] = messages;
     const signature = messages.length + '|' + (messages.length ? messages[messages.length - 1].id + messages[messages.length - 1].createdAt : '');
     if (silent && signature === lastLoadedChatSignature) return; // مفيش رسايل جديدة، متعملش إعادة رسم
     lastLoadedChatSignature = signature;
@@ -1195,6 +1273,7 @@ function stopChatPolling() {
 function inboxRowHTML(conv) {
   const me = getCurrentUser();
   const other = (me && conv.userAId === me.id) ? conv.userB : conv.userA;
+  cachePartialProfile(other);
   const lastMsg = (conv.messages && conv.messages[0]) || null;
   const preview = lastMsg ? lastMsg.body : 'ابدأ المحادثة';
   const initials = (other.fullName || 'م ص').trim().slice(0, 2);
@@ -1211,15 +1290,34 @@ function inboxRowHTML(conv) {
   );
 }
 
+// كاش آخر قايمة محادثات اتحملت، عشان فتح صفحة الرسايل تاني يبقى فوري من غير لودينج
+var inboxCache = null;
+
+function renderInboxList(items) {
+  const listEl = document.getElementById('inboxList');
+  if (!listEl) return;
+  listEl.innerHTML = items.length
+    ? items.map(inboxRowHTML).join('')
+    : '<div class="subtitle" style="text-align:center; margin-top:16px;">مفيش محادثات لسه — ابدأ من صفحة جهاز في الرئيسية</div>';
+}
+
 async function loadInbox() {
   const listEl = document.getElementById('inboxList');
   if (!listEl) return;
+
+  if (inboxCache) {
+    renderInboxList(inboxCache);
+    apiRequest('/chat/conversations').then(function (data) {
+      inboxCache = (data && data.conversations) || [];
+      renderInboxList(inboxCache);
+    }).catch(function () { /* عندنا نسخة كاش شغالة، مفيش داعي نزعج المستخدم */ });
+    return;
+  }
+
   try {
     const data = await apiRequest('/chat/conversations');
-    const items = (data && data.conversations) || [];
-    listEl.innerHTML = items.length
-      ? items.map(inboxRowHTML).join('')
-      : '<div class="subtitle" style="text-align:center; margin-top:16px;">مفيش محادثات لسه — ابدأ من صفحة جهاز في الرئيسية</div>';
+    inboxCache = (data && data.conversations) || [];
+    renderInboxList(inboxCache);
   } catch (err) {
     listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل المحادثات: ' + (err.message || '') + '</div>';
   }
@@ -1267,6 +1365,7 @@ var currentPubProfileUserId = null;
 var currentPubProfileRatingChoice = 0;
 
 function reviewRowHTML(r) {
+  cachePartialProfile(r.fromUser);
   const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
   const date = new Date(r.createdAt).toLocaleDateString('ar-EG');
   const currentUser = getCurrentUser();
@@ -1366,6 +1465,35 @@ async function submitPubReview() {
   }
 }
 
+function renderPublicProfile(user) {
+  const initials = (user.fullName || 'م ص').trim().slice(0, 2);
+
+  document.getElementById('pubAvatar').textContent = initials;
+  document.getElementById('pubAvatar').style.backgroundImage = user.avatarUrl ? 'url(' + user.avatarUrl + ')' : '';
+  document.getElementById('pubAvatar').style.backgroundSize = 'cover';
+  document.getElementById('pubAvatar').style.backgroundPosition = 'center';
+  document.getElementById('pubName').textContent = user.fullName || '—';
+  document.getElementById('pubSubtitle').textContent = ACCOUNT_TYPE_LABELS[user.accountType] || user.accountType || '';
+
+  const verifiedBadge = document.getElementById('pubVerifiedBadge');
+  const isVerified = user.verification === 'verified';
+  verifiedBadge.style.display = isVerified ? '' : 'none';
+  verifiedBadge.textContent = (user.accountType === 'engineer' ? '🛡 موثّق نقابيًا' : '🛡 موثّق');
+
+  document.getElementById('pubRating').textContent = Number(user.rating || 0).toFixed(1);
+  document.getElementById('pubReviews').textContent = user.ratingCount || 0;
+  document.getElementById('pubResponse').textContent = (user.responseRate === null || user.responseRate === undefined) ? '—' : ('٪' + user.responseRate);
+
+  document.getElementById('pubTags').innerHTML = (user.specialties && user.specialties.length)
+    ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
+    : '<span class="tag" style="color:var(--ink-faint);">لا يوجد</span>';
+
+  document.getElementById('pubBio').textContent = user.bio || 'لا يوجد نبذة';
+
+  document.getElementById('pubChatBtn').setAttribute('onclick', "openChatWithUser('" + user.id + "', '" + (user.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
+  document.getElementById('pubCallBtn').setAttribute('onclick', "callSeller('" + (user.phone || '') + "')");
+}
+
 async function openRealPublicProfile(userId) {
   if (!userId) return;
   currentPubProfileUserId = userId;
@@ -1374,39 +1502,25 @@ async function openRealPublicProfile(userId) {
   if (commentEl) commentEl.value = '';
   showPage('pubprofile');
 
+  const cached = publicProfileCache[userId];
+  if (cached) {
+    // عندنا بيانات جزئية عن المستخدم ده أصلاً (من كارت إعلان أو محادثة أو تقييم) — نعرضها فورًا من غير أي لودينج
+    renderPublicProfile(cached);
+    loadPubReviews(userId);
+    apiRequest('/users/' + userId).then(function (data) {
+      cachePartialProfile(data.user);
+      if (currentPubProfileUserId === userId) renderPublicProfile(publicProfileCache[userId]);
+    }).catch(function () { /* عندنا نسخة جزئية شغالة، مفيش داعي نزعج المستخدم */ });
+    return;
+  }
+
   document.getElementById('pubName').textContent = 'بتحمّل...';
   document.getElementById('pubReviewsList').innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل...</div>';
 
   try {
     const data = await apiRequest('/users/' + userId);
-    const user = data.user;
-    const initials = (user.fullName || 'م ص').trim().slice(0, 2);
-
-    document.getElementById('pubAvatar').textContent = initials;
-    document.getElementById('pubAvatar').style.backgroundImage = user.avatarUrl ? 'url(' + user.avatarUrl + ')' : '';
-    document.getElementById('pubAvatar').style.backgroundSize = 'cover';
-    document.getElementById('pubAvatar').style.backgroundPosition = 'center';
-    document.getElementById('pubName').textContent = user.fullName;
-    document.getElementById('pubSubtitle').textContent = ACCOUNT_TYPE_LABELS[user.accountType] || user.accountType;
-
-    const verifiedBadge = document.getElementById('pubVerifiedBadge');
-    const isVerified = user.verification === 'verified';
-    verifiedBadge.style.display = isVerified ? '' : 'none';
-    verifiedBadge.textContent = (user.accountType === 'engineer' ? '🛡 موثّق نقابيًا' : '🛡 موثّق');
-
-    document.getElementById('pubRating').textContent = Number(user.rating || 0).toFixed(1);
-    document.getElementById('pubReviews').textContent = user.ratingCount || 0;
-    document.getElementById('pubResponse').textContent = (user.responseRate === null || user.responseRate === undefined) ? '—' : ('٪' + user.responseRate);
-
-    document.getElementById('pubTags').innerHTML = (user.specialties && user.specialties.length)
-      ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
-      : '<span class="tag" style="color:var(--ink-faint);">لا يوجد</span>';
-
-    document.getElementById('pubBio').textContent = user.bio || 'لا يوجد نبذة';
-
-    document.getElementById('pubChatBtn').setAttribute('onclick', "openChatWithUser('" + user.id + "', '" + user.fullName.replace(/'/g, "\\'") + "', '" + initials + "')");
-    document.getElementById('pubCallBtn').setAttribute('onclick', "callSeller('" + (user.phone || '') + "')");
-
+    cachePartialProfile(data.user);
+    renderPublicProfile(publicProfileCache[userId]);
     loadPubReviews(userId);
   } catch (err) {
     document.getElementById('pubName').textContent = 'تعذر تحميل البروفايل';

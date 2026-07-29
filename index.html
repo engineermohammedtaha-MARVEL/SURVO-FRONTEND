@@ -1165,7 +1165,7 @@
         </div>
         <div class="subtitle" style="text-align:center;">استعلم عن أي جهاز قبل الشراء أو الإيجار، أو بلّغ عن جهازك المفقود أو المسروق</div>
 
-        <div class="list-row" onclick="showPage('inquiry')" style="cursor:pointer; margin-top:10px;">
+        <div class="list-row" onclick="resetInquiryForm(); showPage('inquiry')" style="cursor:pointer; margin-top:10px;">
           <span style="font-size:18px;">🔍</span>
           <div style="flex:1;">
             <div style="font-size:13px; font-weight:700; color:var(--navy);">استعلام عن جهاز</div>
@@ -1174,7 +1174,7 @@
           <span style="color:var(--ink-faint);">←</span>
         </div>
 
-        <div class="list-row" onclick="showPage('report')" style="cursor:pointer; margin-top:9px;">
+        <div class="list-row" onclick="resetReportForm(); showPage('report')" style="cursor:pointer; margin-top:9px;">
           <span style="font-size:18px;">⚠</span>
           <div style="flex:1;">
             <div style="font-size:13px; font-weight:700; color:var(--navy);">الإبلاغ عن فقدان جهاز</div>
@@ -1185,9 +1185,49 @@
 
         <div class="info-box light" style="margin-top:14px;">
           <span>ⓘ</span>
-          <span>بننصحك كمان انك تتواصل مع شركات الصيانة والتوكيلات المعتمدة لإتمام عملية الاستعلام أو التبليغ بشكل كامل، وهتلاقي أرقام التواصل هنا:<br><br>
-          توكيل أجهزة لايكا — شركة تكنوساينت: 0238407006 – 0238407007<br>
-          توكيل أجهزة سوكيا وتوبكون — شركة سيرفيينج سيستمز: 0233472581 – 0233037266</span>
+          <span>بننصحك كمان انك تتواصل مع شركات الصيانة والتوكيلات المعتمدة لإتمام عملية الاستعلام أو التبليغ بشكل كامل.</span>
+        </div>
+
+        <div class="section-label">مراكز الصيانة والتوكيلات المعتمدة</div>
+
+        <div class="list-row">
+          <span style="font-size:16px;">🔧</span>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">توكيل أجهزة لايكا — شركة تكنوساينت</div>
+            <div style="font-size:11px; color:var(--ink-soft);">0238407006 – 0238407007</div>
+          </div>
+        </div>
+
+        <div class="list-row">
+          <span style="font-size:16px;">🔧</span>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">توكيل أجهزة سوكيا وتوبكون — شركة سيرفيينج سيستمز</div>
+            <div style="font-size:11px; color:var(--ink-soft);">0233472581 – 0233037266</div>
+          </div>
+        </div>
+
+        <div class="list-row">
+          <span style="font-size:16px;">🔧</span>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">مكتب Datum للمساحة</div>
+            <div style="font-size:11px; color:var(--ink-soft);">01121430199</div>
+          </div>
+        </div>
+
+        <div class="list-row">
+          <span style="font-size:16px;">🔧</span>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">مكتب الشرق الأوسط</div>
+            <div style="font-size:11px; color:var(--ink-soft);">01009906573</div>
+          </div>
+        </div>
+
+        <div class="list-row">
+          <span style="font-size:16px;">🔧</span>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; font-weight:700; color:var(--navy);">مكتب الأهرام للمساحة</div>
+            <div style="font-size:11px; color:var(--ink-soft);">01113404379</div>
+          </div>
         </div>
       </div>
 
@@ -1198,7 +1238,10 @@
           <div class="page-title">استعلام عن جهاز</div>
           <span style="width:34px;"></span>
         </div>
-        <div class="subtitle" style="margin-top:-8px;">تأكد من حالة أي جهاز قبل الشراء أو الإيجار باستخدام الرقم التسلسلي (Serial Number).</div>
+        <div class="subtitle" style="margin-top:-8px;">تأكد من حالة أي جهاز قبل الشراء أو الإيجار بماركة الجهاز والرقم التسلسلي (Serial Number).</div>
+
+        <span class="field-label">ماركة الجهاز</span>
+        <input type="text" class="field-gap" id="inquiryBrandInput" placeholder="مثال: Leica، Trimble، Topcon">
 
         <span class="field-label">الرقم التسلسلي للجهاز</span>
         <input type="text" class="field-gap" id="inquirySerialInput" placeholder="مثال: TS15-884213-EG">
@@ -1285,8 +1328,8 @@
   </div>
 </div>
 
-<script src="api.js?v=25"></script>
-<script src="script.js?v=25"></script>
+<script src="api.js?v=26"></script>
+<script src="script.js?v=26"></script>
 
 </body>
 </html>

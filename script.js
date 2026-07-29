@@ -288,13 +288,15 @@ function logoutUser(){
   if(!confirm('متأكد إنك عايز تسجّل الخروج؟')) return;
   if(typeof clearAuthToken === 'function') clearAuthToken();
   if(typeof stopNotificationPolling === 'function') stopNotificationPolling();
+  if(typeof resetReportForm === 'function') resetReportForm();
+  if(typeof resetInquiryForm === 'function') resetInquiryForm();
   clearLoginFields();
   showPage('login');
   showToast('تم تسجيل الخروج');
 }
 
 // لو الابليكيشن اتساب في الخلفية (أو اتقفل) لمدة تعدّي الحد ده، نطلب تسجيل دخول جديد
-var AWAY_LOGOUT_THRESHOLD_MS = 60 * 1000;
+var AWAY_LOGOUT_THRESHOLD_MS = 10 * 60 * 1000;
 var AWAY_LAST_ACTIVE_KEY = 'survo_last_active_ts';
 
 function markAppActiveNow(){
@@ -309,6 +311,8 @@ function forceLogoutIfAwayTooLong(){
   if(awayMs > AWAY_LOGOUT_THRESHOLD_MS && typeof getAuthToken === 'function' && getAuthToken()){
     if(typeof clearAuthToken === 'function') clearAuthToken();
     if(typeof stopNotificationPolling === 'function') stopNotificationPolling();
+    if(typeof resetReportForm === 'function') resetReportForm();
+    if(typeof resetInquiryForm === 'function') resetInquiryForm();
     clearLoginFields();
     showPage('login');
   }
