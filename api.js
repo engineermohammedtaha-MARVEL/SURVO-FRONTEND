@@ -49,6 +49,13 @@ async function apiRequest(path, options = {}) {
 
   if (!res.ok) {
     const message = (data && data.message) || 'حصل خطأ غير متوقع';
+    // لو التوكن اللي بعتناه بقى غير صالح (اتلغى بعد تغيير الباسورد، أو الحساب اترفض)، نرجّع المستخدم لصفحة الدخول
+    // بدل ما نسيبه يشوف نفس رسالة الخطأ دي في كل حركة يعملها
+    if (res.status === 401 && token) {
+      if (typeof clearAuthToken === 'function') clearAuthToken();
+      if (typeof stopNotificationPolling === 'function') stopNotificationPolling();
+      if (typeof showPage === 'function') showPage('login');
+    }
     throw new Error(message);
   }
   return data;
