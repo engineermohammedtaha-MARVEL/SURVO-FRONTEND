@@ -952,14 +952,34 @@ async function handleReportDocSelect(input, key, statusId) {
   }
 }
 
+// خانة الماركة بقت select بقيمة "other" بديل عن كتابة حرة، عشان نضمن عدم وجود خطأ كتابي
+function toggleBrandOtherInput(selectId, otherId) {
+  const select = document.getElementById(selectId);
+  const otherInput = document.getElementById(otherId);
+  if (!select || !otherInput) return;
+  const isOther = select.value === 'other';
+  otherInput.style.display = isOther ? '' : 'none';
+  if (!isOther) otherInput.value = '';
+}
+
+function getBrandFieldValue(selectId, otherId) {
+  const select = document.getElementById(selectId);
+  const otherInput = document.getElementById(otherId);
+  if (!select) return '';
+  if (select.value === 'other') return otherInput ? otherInput.value.trim() : '';
+  return select.value;
+}
+
 function resetReportForm() {
   const category = document.getElementById('reportCategory');
   const brand = document.getElementById('reportBrand');
+  const brandOther = document.getElementById('reportBrandOtherInput');
   const serialNumber = document.getElementById('reportSerialNumber');
   const details = document.getElementById('reportDetails');
   const contactPhone = document.getElementById('reportContactPhone');
   if (category) category.value = 'totalstation';
   if (brand) brand.value = '';
+  if (brandOther) { brandOther.value = ''; brandOther.style.display = 'none'; }
   if (serialNumber) serialNumber.value = '';
   if (details) details.value = '';
   if (contactPhone) contactPhone.value = '';
@@ -981,23 +1001,29 @@ function resetReportForm() {
 function resetInquiryForm() {
   const category = document.getElementById('inquiryCategory');
   const brand = document.getElementById('inquiryBrandInput');
+  const brandOther = document.getElementById('inquiryBrandOtherInput');
   const serialNumber = document.getElementById('inquirySerialInput');
   const resultEl = document.getElementById('inquiryResult');
   if (category) category.value = 'totalstation';
   if (brand) brand.value = '';
+  if (brandOther) { brandOther.value = ''; brandOther.style.display = 'none'; }
   if (serialNumber) serialNumber.value = '';
   if (resultEl) resultEl.innerHTML = '';
 }
 
 async function submitDeviceReport() {
   const category = (document.getElementById('reportCategory') || {}).value || 'totalstation';
-  const brand = (document.getElementById('reportBrand') || {}).value || '';
+  const brand = getBrandFieldValue('reportBrand', 'reportBrandOtherInput');
   const serialNumber = (document.getElementById('reportSerialNumber') || {}).value || '';
   const statusBtn = document.querySelector('#reportStatusToggle button.btn-primary');
   const status = statusBtn ? statusBtn.getAttribute('data-status') : 'stolen';
   const details = (document.getElementById('reportDetails') || {}).value || '';
   const contactPhone = (document.getElementById('reportContactPhone') || {}).value || '';
 
+  if (!brand) {
+    showToast('اختار ماركة الجهاز');
+    return;
+  }
   if (!serialNumber.trim()) {
     showToast('اكتب الرقم التسلسلي للجهاز');
     return;
@@ -1008,7 +1034,7 @@ async function submitDeviceReport() {
       method: 'POST',
       body: JSON.stringify({
         category,
-        brand: brand.trim() || undefined,
+        brand,
         serialNumber: serialNumber.trim(),
         status,
         details: details.trim() || undefined,
@@ -1027,14 +1053,13 @@ async function submitDeviceReport() {
 
 async function submitInquiry() {
   const categoryInput = document.getElementById('inquiryCategory');
-  const brandInput = document.getElementById('inquiryBrandInput');
   const serialInput = document.getElementById('inquirySerialInput');
   const category = categoryInput ? categoryInput.value : 'totalstation';
-  const brand = brandInput ? brandInput.value.trim() : '';
+  const brand = getBrandFieldValue('inquiryBrandInput', 'inquiryBrandOtherInput');
   const serialNumber = serialInput ? serialInput.value.trim() : '';
   const resultEl = document.getElementById('inquiryResult');
   if (!brand) {
-    showToast('اكتب ماركة الجهاز');
+    showToast('اختار ماركة الجهاز');
     return;
   }
   if (!serialNumber) {

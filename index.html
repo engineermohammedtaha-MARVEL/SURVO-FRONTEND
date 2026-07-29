@@ -1244,7 +1244,22 @@
         <select class="field-gap" id="inquiryCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option></select>
 
         <span class="field-label">ماركة الجهاز</span>
-        <input type="text" class="field-gap" id="inquiryBrandInput" placeholder="مثال: Leica، Trimble، Topcon">
+        <select class="field-gap" id="inquiryBrandInput" onchange="toggleBrandOtherInput('inquiryBrandInput', 'inquiryBrandOtherInput')">
+          <option value="" disabled selected>اختار ماركة الجهاز</option>
+          <option value="Leica">Leica</option>
+          <option value="Sokkia">Sokkia</option>
+          <option value="Topcon">Topcon</option>
+          <option value="Trimble">Trimble</option>
+          <option value="Spectra">Spectra</option>
+          <option value="Sino">Sino</option>
+          <option value="Geomax">Geomax</option>
+          <option value="South">South</option>
+          <option value="Kolida">Kolida</option>
+          <option value="Hi Target">Hi Target</option>
+          <option value="Nikon">Nikon</option>
+          <option value="other">نوع آخر</option>
+        </select>
+        <input type="text" class="field-gap" id="inquiryBrandOtherInput" placeholder="اكتب ماركة الجهاز" style="display:none;">
 
         <span class="field-label">الرقم التسلسلي للجهاز</span>
         <input type="text" class="field-gap" id="inquirySerialInput" placeholder="مثال: TS15-884213-EG">
@@ -1272,7 +1287,22 @@
         <select class="field-gap" id="reportCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option></select>
 
         <span class="field-label">ماركة الجهاز</span>
-        <input type="text" class="field-gap" id="reportBrand" placeholder="مثال: Leica، Trimble، Topcon">
+        <select class="field-gap" id="reportBrand" onchange="toggleBrandOtherInput('reportBrand', 'reportBrandOtherInput')">
+          <option value="" disabled selected>اختار ماركة الجهاز</option>
+          <option value="Leica">Leica</option>
+          <option value="Sokkia">Sokkia</option>
+          <option value="Topcon">Topcon</option>
+          <option value="Trimble">Trimble</option>
+          <option value="Spectra">Spectra</option>
+          <option value="Sino">Sino</option>
+          <option value="Geomax">Geomax</option>
+          <option value="South">South</option>
+          <option value="Kolida">Kolida</option>
+          <option value="Hi Target">Hi Target</option>
+          <option value="Nikon">Nikon</option>
+          <option value="other">نوع آخر</option>
+        </select>
+        <input type="text" class="field-gap" id="reportBrandOtherInput" placeholder="اكتب ماركة الجهاز" style="display:none;">
 
         <span class="field-label">الرقم التسلسلي للجهاز (Serial Number)</span>
         <input type="text" class="field-gap" id="reportSerialNumber" placeholder="مثال: TS15-884213-EG">
@@ -1331,8 +1361,8 @@
   </div>
 </div>
 
-<script src="api.js?v=27"></script>
-<script src="script.js?v=27"></script>
+<script src="api.js?v=28"></script>
+<script src="script.js?v=28"></script>
 
 </body>
 </html>
