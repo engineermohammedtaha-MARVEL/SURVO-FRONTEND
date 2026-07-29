@@ -979,9 +979,11 @@ function resetReportForm() {
 }
 
 function resetInquiryForm() {
+  const category = document.getElementById('inquiryCategory');
   const brand = document.getElementById('inquiryBrandInput');
   const serialNumber = document.getElementById('inquirySerialInput');
   const resultEl = document.getElementById('inquiryResult');
+  if (category) category.value = 'totalstation';
   if (brand) brand.value = '';
   if (serialNumber) serialNumber.value = '';
   if (resultEl) resultEl.innerHTML = '';
@@ -1024,8 +1026,10 @@ async function submitDeviceReport() {
 }
 
 async function submitInquiry() {
+  const categoryInput = document.getElementById('inquiryCategory');
   const brandInput = document.getElementById('inquiryBrandInput');
   const serialInput = document.getElementById('inquirySerialInput');
+  const category = categoryInput ? categoryInput.value : 'totalstation';
   const brand = brandInput ? brandInput.value.trim() : '';
   const serialNumber = serialInput ? serialInput.value.trim() : '';
   const resultEl = document.getElementById('inquiryResult');
@@ -1040,7 +1044,7 @@ async function submitInquiry() {
   resultEl.innerHTML = '<div class="subtitle" style="text-align:center;">بيتم الاستعلام...</div>';
 
   try {
-    const data = await apiRequest('/device-reports/lookup?serialNumber=' + encodeURIComponent(serialNumber) + '&brand=' + encodeURIComponent(brand));
+    const data = await apiRequest('/device-reports/lookup?serialNumber=' + encodeURIComponent(serialNumber) + '&brand=' + encodeURIComponent(brand) + '&category=' + encodeURIComponent(category));
     if (data.clean) {
       resultEl.innerHTML =
         '<div class="card" style="border:1.5px solid var(--green); background:var(--green-bg); margin-bottom:10px;">' +

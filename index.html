@@ -1238,7 +1238,10 @@
           <div class="page-title">استعلام عن جهاز</div>
           <span style="width:34px;"></span>
         </div>
-        <div class="subtitle" style="margin-top:-8px;">تأكد من حالة أي جهاز قبل الشراء أو الإيجار بماركة الجهاز والرقم التسلسلي (Serial Number).</div>
+        <div class="subtitle" style="margin-top:-8px;">تأكد من حالة أي جهاز قبل الشراء أو الإيجار بنوع الجهاز وماركته والرقم التسلسلي (Serial Number).</div>
+
+        <span class="field-label">نوع الجهاز</span>
+        <select class="field-gap" id="inquiryCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option></select>
 
         <span class="field-label">ماركة الجهاز</span>
         <input type="text" class="field-gap" id="inquiryBrandInput" placeholder="مثال: Leica، Trimble، Topcon">
@@ -1266,7 +1269,7 @@
         <div class="subtitle" style="margin-top:-8px;">بلّغ عن جهازك المفقود أو المسروق عشان يظهر تحذير لأي حد يحاول يستعلم عنه أو يعرضه على المنصة.</div>
 
         <span class="field-label">نوع الجهاز</span>
-        <select class="field-gap" id="reportCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
+        <select class="field-gap" id="reportCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option></select>
 
         <span class="field-label">ماركة الجهاز</span>
         <input type="text" class="field-gap" id="reportBrand" placeholder="مثال: Leica، Trimble، Topcon">
@@ -1328,8 +1331,8 @@
   </div>
 </div>
 
-<script src="api.js?v=26"></script>
-<script src="script.js?v=26"></script>
+<script src="api.js?v=27"></script>
+<script src="script.js?v=27"></script>
 
 </body>
 </html>
