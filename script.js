@@ -212,43 +212,46 @@ function initRequestDateLimits(){
 }
 initRequestDateLimits();
 
-var deviceTypeLabels = {totalstation:'توتال ستاشن', gps:'GPS', level:'ميزان', laser:'ليزر سكانر', accessories:'اكسسوارات'};
 async function publishRequest(){
   var typeBtn = document.querySelector('#requestTypeToggle button.btn-primary');
   var isRent = !typeBtn || typeBtn.getAttribute('data-requesttype') === 'rent';
   var deviceSelect = document.getElementById('requestDeviceType');
   var deviceKey = deviceSelect ? deviceSelect.value : 'totalstation';
-  var deviceLabel = deviceTypeLabels[deviceKey] || deviceKey;
   var gov = document.getElementById('requestGovernorate');
   var govValue = gov ? gov.value : 'القاهرة';
   var fromInput = document.getElementById('requestDateFrom');
   var toInput = document.getElementById('requestDateTo');
   var detailsInput = document.getElementById('requestDetails');
   var budgetInput = document.getElementById('requestBudget');
-  var priceText = isRent ? 'إيجار' : 'شراء';
-  if(isRent && fromInput && toInput && fromInput.value && toInput.value){
-    priceText += ' — ' + fromInput.value + ' إلى ' + toInput.value;
-  }
 
-  // نحاول ننشر الطلب فعليًا على الباك اند لو متاح
-  if(typeof publishRequestAPI === 'function' && typeof getAuthToken === 'function' && getAuthToken()){
+  var payload = {
+    category: deviceKey,
+    type: isRent ? 'rent' : 'buy',
+    details: detailsInput ? detailsInput.value : undefined,
+    dateFrom: isRent && fromInput ? fromInput.value || undefined : undefined,
+    dateTo: isRent && toInput ? toInput.value || undefined : undefined,
+    governorate: govValue,
+    budget: budgetInput ? budgetInput.value : undefined,
+  };
+
+  var isEditing = typeof editingRequestId !== 'undefined' && !!editingRequestId;
+
+  if(typeof getAuthToken === 'function' && getAuthToken()){
     try{
-      await publishRequestAPI({
-        category: deviceKey,
-        type: isRent ? 'rent' : 'buy',
-        details: detailsInput ? detailsInput.value : undefined,
-        dateFrom: fromInput ? fromInput.value || undefined : undefined,
-        dateTo: toInput ? toInput.value || undefined : undefined,
-        governorate: govValue,
-        budget: budgetInput ? budgetInput.value : undefined,
-      });
+      if(isEditing){
+        await updateRequestAPI(editingRequestId, payload);
+      }else{
+        await publishRequestAPI(payload);
+      }
     }catch(err){
-      showToast(err.message || 'حصل خطأ أثناء نشر الطلب على السيرفر');
+      showToast(err.message || 'حصل خطأ أثناء حفظ الطلب على السيرفر');
       return;
     }
   }
 
-  showToast('تم نشر طلبك بنجاح ✓');
+  if(isEditing && typeof listingDetailCache !== 'undefined') delete listingDetailCache['request:' + editingRequestId];
+  showToast(isEditing ? 'تم حفظ التعديلات ✓' : 'تم نشر طلبك بنجاح ✓');
+  editingRequestId = null;
   showPage('home');
   if (typeof loadHomeEquipment === 'function') loadHomeEquipment();
 }
@@ -290,6 +293,7 @@ function logoutUser(){
   if(typeof stopNotificationPolling === 'function') stopNotificationPolling();
   if(typeof resetReportForm === 'function') resetReportForm();
   if(typeof resetInquiryForm === 'function') resetInquiryForm();
+  if(typeof editingRequestId !== 'undefined') editingRequestId = null;
   clearLoginFields();
   showPage('login');
   showToast('تم تسجيل الخروج');

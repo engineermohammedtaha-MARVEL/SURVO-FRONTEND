@@ -529,6 +529,116 @@ async function deleteMyRequest() {
   }
 }
 
+// ============================================================
+// MY REQUESTS (page-myrequests) — عرض/تعديل/حذف طلبات المستخدم نفسه
+// ============================================================
+
+var editingRequestId = null;
+
+function resetRequestForm() {
+  const typeToggle = document.getElementById('requestTypeToggle');
+  if (typeToggle) {
+    typeToggle.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.getAttribute('data-requesttype') === 'rent');
+    });
+  }
+  const dateFields = document.getElementById('requestDateFields');
+  if (dateFields) dateFields.style.display = '';
+  const deviceType = document.getElementById('requestDeviceType');
+  if (deviceType) deviceType.value = 'totalstation';
+  const details = document.getElementById('requestDetails');
+  if (details) details.value = '';
+  const dateFrom = document.getElementById('requestDateFrom');
+  if (dateFrom) dateFrom.value = '';
+  const dateTo = document.getElementById('requestDateTo');
+  if (dateTo) dateTo.value = '';
+  const governorate = document.getElementById('requestGovernorate');
+  if (governorate) governorate.value = 'القاهرة';
+  const budget = document.getElementById('requestBudget');
+  if (budget) budget.value = '';
+}
+
+function startNewRequest() {
+  editingRequestId = null;
+  resetRequestForm();
+  const title = document.getElementById('requestPageTitle');
+  if (title) title.textContent = 'حدد طلبك';
+  const submitBtn = document.getElementById('requestSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'نشر الطلب';
+  showPage('request');
+}
+
+function editMyRequest() {
+  if (currentDetailType !== 'request' || !currentDetailId) return;
+  const item = listingDetailCache['request:' + currentDetailId];
+  if (!item) return;
+
+  editingRequestId = currentDetailId;
+
+  const typeToggle = document.getElementById('requestTypeToggle');
+  if (typeToggle) {
+    typeToggle.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.getAttribute('data-requesttype') === item.type);
+    });
+  }
+  const isRent = item.type === 'rent';
+  const dateFields = document.getElementById('requestDateFields');
+  if (dateFields) dateFields.style.display = isRent ? '' : 'none';
+
+  const deviceType = document.getElementById('requestDeviceType');
+  if (deviceType) deviceType.value = item.category || 'totalstation';
+  const details = document.getElementById('requestDetails');
+  if (details) details.value = item.details || '';
+  const dateFrom = document.getElementById('requestDateFrom');
+  if (dateFrom) dateFrom.value = item.dateFrom ? item.dateFrom.slice(0, 10) : '';
+  const dateTo = document.getElementById('requestDateTo');
+  if (dateTo) dateTo.value = item.dateTo ? item.dateTo.slice(0, 10) : '';
+  const governorate = document.getElementById('requestGovernorate');
+  if (governorate) governorate.value = item.governorate || 'القاهرة';
+  const budget = document.getElementById('requestBudget');
+  if (budget) budget.value = item.budget || '';
+
+  const title = document.getElementById('requestPageTitle');
+  if (title) title.textContent = 'تعديل الطلب';
+  const submitBtn = document.getElementById('requestSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'حفظ التعديلات';
+
+  showPage('request');
+}
+
+function myRequestRowHTML(item) {
+  const typeLabel = item.type === 'rent' ? 'إيجار' : 'شراء';
+  let priceText = typeLabel;
+  if (item.type === 'rent' && item.dateFrom && item.dateTo) {
+    priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
+  } else if (item.budget) {
+    priceText += ' — ' + formatMoney(item.budget, ' ج');
+  }
+  return (
+    '<div class="list-row" style="cursor:pointer;" onclick="openListingDetail(\'request\', \'' + item.id + '\')">' +
+    '<span style="font-size:18px;">📨</span>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
+    '<span style="color:var(--ink-faint);">←</span>' +
+    '</div>'
+  );
+}
+
+async function loadMyRequests() {
+  const listEl = document.getElementById('myRequestsList');
+  if (!listEl) return;
+  try {
+    const data = await apiRequest('/requests/mine');
+    const items = (data && data.items) || [];
+    items.forEach(function (item) { cacheListingDetail('request', item); });
+    listEl.innerHTML = items.length
+      ? items.map(myRequestRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي طلبات، دوس "اطلب جهاز مساحة" عشان تضيف أول طلب</div>';
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل طلباتك: ' + (err.message || '') + '</div>';
+  }
+}
+
 async function openListingDetail(type, itemId) {
   if (!itemId) return;
   showPage('equipment-detail');
@@ -1579,6 +1689,13 @@ function openCurrentChatProfile() {
 async function publishRequestAPI(payload) {
   return apiRequest('/requests', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateRequestAPI(id, payload) {
+  return apiRequest('/requests/' + id, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }
