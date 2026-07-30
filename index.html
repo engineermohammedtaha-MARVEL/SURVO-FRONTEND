@@ -1002,7 +1002,7 @@
       <div class="page" id="page-myequip">
         <div class="topbar">
           <div class="page-title">عرض</div>
-          <div class="icon-btn" onclick="resetAddEquipPhotos(); showPage('addequip')">+</div>
+          <div class="icon-btn" onclick="startNewEquipment()">+</div>
         </div>
 
         <div class="stat3">
@@ -1020,7 +1020,7 @@
       <div class="page" id="page-addequip">
         <div class="topbar">
           <div class="icon-btn" onclick="showPage('myequip'); loadMyEquipment()">→</div>
-          <div class="page-title">إضافة إعلان جديد</div>
+          <div class="page-title" id="addEquipPageTitle">إضافة إعلان جديد</div>
           <span style="width:34px;"></span>
         </div>
 
@@ -1104,7 +1104,7 @@
           <span>مش هينشر إعلانك إلا بعد ما نتأكد إن الرقم التسلسلي مش عليه أي بلاغ سرقة أو فقدان مسجّل على المنصة.</span>
         </div>
 
-        <button class="btn btn-primary btn-block" onclick="submitAddEquipment()">إضافة الجهاز</button>
+        <button class="btn btn-primary btn-block" id="addEquipSubmitBtn" onclick="submitAddEquipment()">إضافة الجهاز</button>
       </div>
 
       <!-- ============ NOTIFICATIONS (placeholder) ============ -->
@@ -1398,8 +1398,8 @@
   </div>
 </div>
 
-<script src="api.js?v=33"></script>
-<script src="script.js?v=33"></script>
+<script src="api.js?v=34"></script>
+<script src="script.js?v=34"></script>
 
 </body>
 </html>

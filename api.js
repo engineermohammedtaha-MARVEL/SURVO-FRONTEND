@@ -837,6 +837,7 @@ function myEquipRowHTML(item) {
     '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
     moderationBadge +
     statusBadge +
+    '<span class="delete-ico" style="margin-left:2px;" onclick="editMyEquipment(\'' + item.id + '\')">✏️</span>' +
     '<span class="delete-ico" onclick="deleteMyEquipment(\'' + item.id + '\')">🗑</span>' +
     '</div>'
   );
@@ -848,6 +849,7 @@ async function loadMyEquipment() {
   try {
     const data = await apiRequest('/equipment/mine');
     const items = (data && data.items) || [];
+    items.forEach(function (item) { cacheListingDetail('equipment', item); });
 
     const totalEl = document.getElementById('myEquipStatTotal');
     const availEl = document.getElementById('myEquipStatAvailable');
@@ -874,6 +876,130 @@ async function deleteMyEquipment(id) {
   } catch (err) {
     showToast(err.message || 'تعذر حذف الإعلان');
   }
+}
+
+var editingEquipmentId = null;
+
+function startNewEquipment() {
+  editingEquipmentId = null;
+  resetAddEquipPhotos();
+
+  const category = document.getElementById('addEquipCategory');
+  if (category) category.value = 'totalstation';
+  const brand = document.getElementById('addEquipBrand');
+  if (brand) brand.value = '';
+  const brandOther = document.getElementById('addEquipBrandOtherInput');
+  if (brandOther) { brandOther.value = ''; brandOther.style.display = 'none'; }
+  const model = document.getElementById('addEquipModel');
+  if (model) model.value = '';
+  const price = document.getElementById('addEquipPrice');
+  if (price) price.value = '';
+  const governorate = document.getElementById('addEquipGovernorate');
+  if (governorate) governorate.value = 'القاهرة';
+  const description = document.getElementById('addEquipDescription');
+  if (description) description.value = '';
+
+  const typeToggle = document.getElementById('addequipTypeToggle');
+  if (typeToggle) {
+    typeToggle.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.getAttribute('data-listingtype') === 'rent');
+    });
+  }
+  const priceLabel = document.getElementById('addEquipPriceLabel');
+  if (priceLabel) priceLabel.textContent = 'السعر (ج / يوم)';
+
+  const title = document.getElementById('addEquipPageTitle');
+  if (title) title.textContent = 'إضافة إعلان جديد';
+  const submitBtn = document.getElementById('addEquipSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'إضافة الجهاز';
+
+  showPage('addequip');
+}
+
+function editMyEquipment(id) {
+  const item = listingDetailCache['equipment:' + id];
+  if (!item) return;
+  editingEquipmentId = id;
+
+  const typeToggle = document.getElementById('addequipTypeToggle');
+  if (typeToggle) {
+    typeToggle.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('btn-primary', b.getAttribute('data-listingtype') === item.listingType);
+    });
+  }
+  const priceLabel = document.getElementById('addEquipPriceLabel');
+  if (priceLabel) priceLabel.textContent = item.listingType === 'rent' ? 'السعر (ج / يوم)' : 'سعر البيع (ج)';
+
+  const category = document.getElementById('addEquipCategory');
+  if (category) category.value = item.category || 'totalstation';
+
+  // مفيش برند/موديل متخزنين لوحدهم في الداتابيز، بس عنوان الإعلان — فبنحاول نفصلهم عن بعض
+  // بمطابقة أول كلمة في العنوان مع قائمة البراندات المعروفة
+  const brandSelect = document.getElementById('addEquipBrand');
+  const brandOtherInput = document.getElementById('addEquipBrandOtherInput');
+  const modelInput = document.getElementById('addEquipModel');
+  const title = item.title || '';
+  const knownBrands = brandSelect
+    ? Array.prototype.map.call(brandSelect.options, function (o) { return o.value; }).filter(function (v) { return v && v !== 'other'; })
+    : [];
+  const matchedBrand = knownBrands.find(function (b) { return title.toLowerCase().indexOf(b.toLowerCase()) === 0; });
+  if (matchedBrand) {
+    if (brandSelect) brandSelect.value = matchedBrand;
+    if (brandOtherInput) { brandOtherInput.style.display = 'none'; brandOtherInput.value = ''; }
+    if (modelInput) modelInput.value = title.slice(matchedBrand.length).trim();
+  } else {
+    if (brandSelect) brandSelect.value = 'other';
+    if (brandOtherInput) { brandOtherInput.style.display = ''; brandOtherInput.value = title; }
+    if (modelInput) modelInput.value = '';
+  }
+
+  const priceInput = document.getElementById('addEquipPrice');
+  if (priceInput) priceInput.value = item.listingType === 'rent' ? (item.pricePerDay || '') : (item.salePrice || '');
+
+  const governorate = document.getElementById('addEquipGovernorate');
+  if (governorate) governorate.value = item.governorate || 'القاهرة';
+
+  const description = document.getElementById('addEquipDescription');
+  if (description) description.value = item.description || '';
+
+  // بنحمّل الصور والمستندات الحالية في الكاش، فلو المستخدم مرفعش حاجة جديدة
+  // القيم دي هي اللي هتتبعت زي ما هي من غير ما تتمسح
+  const images = item.images || [];
+  addEquipPhotoUrls = {};
+  if (images[0]) addEquipPhotoUrls[1] = images[0];
+  if (images[1]) addEquipPhotoUrls[2] = images[1];
+  [1, 2].forEach(function (i) {
+    const slot = document.getElementById('addEquipPhotoSlot' + i);
+    if (slot) {
+      if (images[i - 1]) {
+        slot.style.backgroundImage = 'url(' + images[i - 1] + ')';
+        slot.firstChild.textContent = '';
+      } else {
+        slot.style.backgroundImage = '';
+        slot.firstChild.textContent = '📷 صورة ' + i;
+      }
+      const input = slot.querySelector('input[type=file]');
+      if (input) input.value = '';
+    }
+  });
+
+  equipDocUrls = {};
+  if (item.ownershipDocUrl) equipDocUrls.ownershipDocUrl = item.ownershipDocUrl;
+  if (item.serialNumberPhotoUrl) equipDocUrls.serialNumberPhotoUrl = item.serialNumberPhotoUrl;
+  const ownershipStatus = document.getElementById('ownershipDocStatus');
+  if (ownershipStatus) ownershipStatus.textContent = item.ownershipDocUrl ? '✓' : '⬆';
+  const serialStatus = document.getElementById('serialPhotoStatus');
+  if (serialStatus) serialStatus.textContent = item.serialNumberPhotoUrl ? '✓' : '⬆';
+
+  const serialInput = document.getElementById('addEquipSerialNumber');
+  if (serialInput) serialInput.value = item.serialNumber || '';
+
+  const title2 = document.getElementById('addEquipPageTitle');
+  if (title2) title2.textContent = 'تعديل الإعلان';
+  const submitBtn = document.getElementById('addEquipSubmitBtn');
+  if (submitBtn) submitBtn.textContent = 'حفظ التعديلات';
+
+  showPage('addequip');
 }
 
 var addEquipPhotoUrls = {};
@@ -990,13 +1116,20 @@ async function submitAddEquipment() {
   if (listingType === 'rent') payload.pricePerDay = price || undefined;
   else payload.salePrice = price || undefined;
 
+  const isEdit = !!editingEquipmentId;
+  const editedId = editingEquipmentId;
+
   try {
-    const data = await apiRequest('/equipment', { method: 'POST', body: JSON.stringify(payload) });
-    showToast(data.message || 'تم إضافة الجهاز ✓');
+    const data = isEdit
+      ? await apiRequest('/equipment/' + editedId, { method: 'PATCH', body: JSON.stringify(payload) })
+      : await apiRequest('/equipment', { method: 'POST', body: JSON.stringify(payload) });
+    showToast(data.message || (isEdit ? 'تم حفظ التعديلات ✓' : 'تم إضافة الجهاز ✓'));
+    if (isEdit) delete listingDetailCache['equipment:' + editedId];
+    editingEquipmentId = null;
     resetAddEquipPhotos();
     setTimeout(function () { showPage('myequip'); loadMyEquipment(); }, 900);
   } catch (err) {
-    showToast(err.message || 'حصل خطأ أثناء إضافة الجهاز');
+    showToast(err.message || (isEdit ? 'حصل خطأ أثناء حفظ التعديلات' : 'حصل خطأ أثناء إضافة الجهاز'));
   }
 }
 
