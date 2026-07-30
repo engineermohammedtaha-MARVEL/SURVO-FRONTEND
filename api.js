@@ -490,12 +490,13 @@ function renderListingDetail(type, item) {
     thumbEl.textContent = '📨';
     badgeEl.textContent = 'طلب';
     badgeEl.className = 'badge';
-    document.getElementById('equipDetailTitle').textContent = 'طلب: ' + (CATEGORY_LABELS[item.category] || item.category);
+    document.getElementById('equipDetailTitle').textContent = 'طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + item.brand : '');
     document.getElementById('equipDetailLocation').textContent = '📍 ' + (item.governorate || '—');
     let priceText = item.type === 'rent' ? 'إيجار' : 'شراء';
     if (item.type === 'rent' && item.dateFrom && item.dateTo) {
       priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
-    } else if (item.budget) {
+    }
+    if (item.budget) {
       priceText += ' — ' + formatMoney(item.budget, ' ج');
     }
     document.getElementById('equipDetailPrice').textContent = priceText;
@@ -522,8 +523,7 @@ async function deleteMyRequest() {
     await apiRequest('/requests/' + currentDetailId, { method: 'DELETE' });
     showToast('تم حذف الطلب ✓');
     delete listingDetailCache['request:' + currentDetailId];
-    showPage('home');
-    loadHomeEquipment();
+    closeListingDetail();
   } catch (err) {
     showToast(err.message || 'تعذر حذف الطلب');
   }
@@ -534,6 +534,13 @@ async function deleteMyRequest() {
 // ============================================================
 
 var editingRequestId = null;
+
+function toggleRequestBrandField() {
+  const category = document.getElementById('requestDeviceType');
+  const wrap = document.getElementById('requestBrandFieldWrap');
+  if (!category || !wrap) return;
+  wrap.style.display = category.value === 'accessories' ? 'none' : '';
+}
 
 function resetRequestForm() {
   const typeToggle = document.getElementById('requestTypeToggle');
@@ -546,6 +553,11 @@ function resetRequestForm() {
   if (dateFields) dateFields.style.display = '';
   const deviceType = document.getElementById('requestDeviceType');
   if (deviceType) deviceType.value = 'totalstation';
+  const brand = document.getElementById('requestBrand');
+  if (brand) brand.value = '';
+  const brandOther = document.getElementById('requestBrandOtherInput');
+  if (brandOther) { brandOther.value = ''; brandOther.style.display = 'none'; }
+  toggleRequestBrandField();
   const details = document.getElementById('requestDetails');
   if (details) details.value = '';
   const dateFrom = document.getElementById('requestDateFrom');
@@ -587,6 +599,23 @@ function editMyRequest() {
 
   const deviceType = document.getElementById('requestDeviceType');
   if (deviceType) deviceType.value = item.category || 'totalstation';
+  toggleRequestBrandField();
+  const brandSelect = document.getElementById('requestBrand');
+  const brandOtherInput = document.getElementById('requestBrandOtherInput');
+  const brand = item.brand || '';
+  const knownBrands = brandSelect
+    ? Array.prototype.map.call(brandSelect.options, function (o) { return o.value; }).filter(function (v) { return v && v !== 'other'; })
+    : [];
+  if (!brand) {
+    if (brandSelect) brandSelect.value = '';
+    if (brandOtherInput) { brandOtherInput.style.display = 'none'; brandOtherInput.value = ''; }
+  } else if (knownBrands.indexOf(brand) !== -1) {
+    if (brandSelect) brandSelect.value = brand;
+    if (brandOtherInput) { brandOtherInput.style.display = 'none'; brandOtherInput.value = ''; }
+  } else {
+    if (brandSelect) brandSelect.value = 'other';
+    if (brandOtherInput) { brandOtherInput.style.display = ''; brandOtherInput.value = brand; }
+  }
   const details = document.getElementById('requestDetails');
   if (details) details.value = item.details || '';
   const dateFrom = document.getElementById('requestDateFrom');
@@ -611,13 +640,14 @@ function myRequestRowHTML(item) {
   let priceText = typeLabel;
   if (item.type === 'rent' && item.dateFrom && item.dateTo) {
     priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
-  } else if (item.budget) {
+  }
+  if (item.budget) {
     priceText += ' — ' + formatMoney(item.budget, ' ج');
   }
   return (
     '<div class="list-row" style="cursor:pointer;" onclick="openListingDetail(\'request\', \'' + item.id + '\')">' +
     '<span style="font-size:18px;">📨</span>' +
-    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + '</div>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + item.brand : '') + '</div>' +
     '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
     '<span style="color:var(--ink-faint);">←</span>' +
     '</div>'
@@ -639,8 +669,24 @@ async function loadMyRequests() {
   }
 }
 
+var detailReturnPage = 'home';
+
+function refreshReturnPage(page) {
+  if (page === 'myrequests') loadMyRequests();
+  else if (page === 'myequip') loadMyEquipment();
+  else loadHomeEquipment();
+}
+
+function closeListingDetail() {
+  const page = detailReturnPage || 'home';
+  showPage(page);
+  refreshReturnPage(page);
+}
+
 async function openListingDetail(type, itemId) {
   if (!itemId) return;
+  const activePage = document.querySelector('.page.active');
+  if (activePage) detailReturnPage = activePage.id.replace('page-', '');
   showPage('equipment-detail');
 
   const pageTitle = document.getElementById('equipDetailPageTitle');
@@ -699,7 +745,8 @@ function requestCardHTML(item) {
   let priceText = typeLabel;
   if (item.type === 'rent' && item.dateFrom && item.dateTo) {
     priceText += ' — ' + new Date(item.dateFrom).toLocaleDateString('ar-EG') + ' إلى ' + new Date(item.dateTo).toLocaleDateString('ar-EG');
-  } else if (item.budget) {
+  }
+  if (item.budget) {
     priceText += ' — ' + formatMoney(item.budget, ' ج');
   }
 
@@ -707,7 +754,7 @@ function requestCardHTML(item) {
     '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
     '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">📨</div>' +
     '<span class="badge" style="background:#E9EEF7; color:var(--navy-3);">طلب</span>' +
-    '<div class="item-name">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + '</div>' +
+    '<div class="item-name">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + item.brand : '') + '</div>' +
     '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
     '<div class="item-price" style="font-size:11.5px;">' + priceText + '</div>' +
     '</div>'

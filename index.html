@@ -105,7 +105,7 @@
       <!-- ============ EQUIPMENT DETAIL (real, dynamic) ============ -->
       <div class="page" id="page-equipment-detail">
         <div class="topbar">
-          <div class="icon-btn" onclick="showPage('home'); loadHomeEquipment();">→</div>
+          <div class="icon-btn" onclick="closeListingDetail();">→</div>
           <div class="page-title" id="equipDetailPageTitle">تفاصيل الإعلان</div>
           <span style="width:34px;"></span>
         </div>
@@ -501,7 +501,27 @@
         </div>
 
         <span class="field-label">نوع الجهاز</span>
-        <select class="field-gap" id="requestDeviceType"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
+        <select class="field-gap" id="requestDeviceType" onchange="toggleRequestBrandField()"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
+
+        <div id="requestBrandFieldWrap">
+          <span class="field-label">ماركة الجهاز (اختياري)</span>
+          <select class="field-gap" id="requestBrand" onchange="toggleBrandOtherInput('requestBrand', 'requestBrandOtherInput')">
+            <option value="" selected>مفيش ماركة معينة</option>
+            <option value="Leica">Leica</option>
+            <option value="Sokkia">Sokkia</option>
+            <option value="Topcon">Topcon</option>
+            <option value="Trimble">Trimble</option>
+            <option value="Spectra">Spectra</option>
+            <option value="Sino">Sino</option>
+            <option value="Geomax">Geomax</option>
+            <option value="South">South</option>
+            <option value="Kolida">Kolida</option>
+            <option value="Hi Target">Hi Target</option>
+            <option value="Nikon">Nikon</option>
+            <option value="other">نوع آخر</option>
+          </select>
+          <input type="text" class="field-gap" id="requestBrandOtherInput" placeholder="اكتب ماركة الجهاز" style="display:none;">
+        </div>
 
         <span class="field-label">تفاصيل إضافية</span>
         <textarea class="field-gap" id="requestDetails" placeholder="مثال: محتاج توتال ستاشن دقة عالية لمشروع طرق"></textarea>
@@ -1398,8 +1418,8 @@
   </div>
 </div>
 
-<script src="api.js?v=34"></script>
-<script src="script.js?v=34"></script>
+<script src="api.js?v=35"></script>
+<script src="script.js?v=35"></script>
 
 </body>
 </html>

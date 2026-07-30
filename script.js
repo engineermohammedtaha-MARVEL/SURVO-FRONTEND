@@ -224,8 +224,13 @@ async function publishRequest(){
   var detailsInput = document.getElementById('requestDetails');
   var budgetInput = document.getElementById('requestBudget');
 
+  var brandValue = (deviceKey !== 'accessories' && typeof getBrandFieldValue === 'function')
+    ? getBrandFieldValue('requestBrand', 'requestBrandOtherInput')
+    : '';
+
   var payload = {
     category: deviceKey,
+    brand: brandValue || undefined,
     type: isRent ? 'rent' : 'buy',
     details: detailsInput ? detailsInput.value : undefined,
     dateFrom: isRent && fromInput ? fromInput.value || undefined : undefined,
