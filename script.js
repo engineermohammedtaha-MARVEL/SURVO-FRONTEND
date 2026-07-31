@@ -348,10 +348,12 @@ function openChat(name, initials){
 async function sendChatMessage(){
   var box = document.getElementById('chatInputBox');
   var text = box.value.trim();
-  if(!text) return;
+  var attachmentUrl = (typeof chatPendingAttachmentUrl !== 'undefined') ? chatPendingAttachmentUrl : null;
+  if(!text && !attachmentUrl) return;
 
   if(typeof currentChatOtherUserId !== 'undefined' && currentChatOtherUserId && typeof apiRequest === 'function'){
     box.value = '';
+    if(typeof clearChatAttachment === 'function') clearChatAttachment();
     try{
       // أول رسالة فعلية هي اللي بتنشئ المحادثة الحقيقية، مش مجرد فتح شاشة الشات
       if(!currentConversationId){
@@ -364,7 +366,7 @@ async function sendChatMessage(){
       }
       await apiRequest('/chat/conversations/' + currentConversationId + '/messages', {
         method: 'POST',
-        body: JSON.stringify({ body: text }),
+        body: JSON.stringify({ body: text || undefined, attachmentUrl: attachmentUrl || undefined }),
       });
       await loadChatMessages(currentConversationId);
     }catch(err){

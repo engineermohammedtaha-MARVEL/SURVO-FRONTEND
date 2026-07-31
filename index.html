@@ -969,7 +969,16 @@
           <div class="msg out">عايز أستفسر عن الجهاز، هو متاح دلوقتي؟<span class="msg-time">10:03 ص</span></div>
           <div class="msg in">أيوه متاح، تقدر تحدد ميعاد الاستلام من الطلب مباشرة.<span class="msg-time">10:05 ص</span></div>
         </div>
+        <div id="chatAttachmentPreviewRow" style="display:none; align-items:center; gap:8px; padding:6px 10px;">
+          <div id="chatAttachmentPreviewThumb" style="width:38px; height:38px; border-radius:8px; background-size:cover; background-position:center; background-color:var(--cream-2); flex-shrink:0;"></div>
+          <span id="chatAttachmentPreviewStatus" style="font-size:11px; color:var(--ink-soft); flex:1;">بترفع...</span>
+          <span style="cursor:pointer; font-size:16px;" onclick="clearChatAttachment()">✕</span>
+        </div>
         <div class="chat-input-row">
+          <label style="cursor:pointer; display:flex; align-items:center; padding:0 6px; font-size:18px;">
+            📎
+            <input type="file" accept="image/*" style="display:none;" onchange="handleChatAttachmentSelect(this)">
+          </label>
           <input type="text" id="chatInputBox" placeholder="اكتب رسالتك...">
           <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
         </div>
@@ -1404,8 +1413,8 @@
   </div>
 </div>
 
-<script src="api.js?v=38"></script>
-<script src="script.js?v=38"></script>
+<script src="api.js?v=39"></script>
+<script src="script.js?v=39"></script>
 
 </body>
 </html>

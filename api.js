@@ -1552,6 +1552,52 @@ async function markNotificationRead(id, rowEl) {
 var currentConversationId = null;
 var currentChatOtherUserId = null;
 
+var chatPendingAttachmentUrl = null;
+
+async function handleChatAttachmentSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const row = document.getElementById('chatAttachmentPreviewRow');
+  const thumb = document.getElementById('chatAttachmentPreviewThumb');
+  const status = document.getElementById('chatAttachmentPreviewStatus');
+  if (row) row.style.display = 'flex';
+  if (status) status.textContent = 'بترفع...';
+
+  // بريفيو فوري من الملف نفسه (من غير ما نستنى السيرفر) عشان المستخدم يطمن إنه اختار الصورة الصح
+  const localPreviewUrl = URL.createObjectURL(file);
+  if (thumb) thumb.style.backgroundImage = 'url(' + localPreviewUrl + ')';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', 'chat');
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+
+    chatPendingAttachmentUrl = data.url;
+    if (status) status.textContent = 'جاهزة للإرسال ✓';
+  } catch (err) {
+    clearChatAttachment();
+    showToast(err.message || 'تعذر رفع الصورة');
+  }
+}
+
+function clearChatAttachment() {
+  chatPendingAttachmentUrl = null;
+  const row = document.getElementById('chatAttachmentPreviewRow');
+  const thumb = document.getElementById('chatAttachmentPreviewThumb');
+  if (row) row.style.display = 'none';
+  if (thumb) thumb.style.backgroundImage = '';
+  const input = document.querySelector('.chat-input-row input[type=file]');
+  if (input) input.value = '';
+}
+
 function chatMessageHTML(msg) {
   const me = getCurrentUser();
   const isMine = me && msg.senderId === me.id;
@@ -1562,7 +1608,33 @@ function chatMessageHTML(msg) {
   let h12 = h % 12; if (h12 === 0) h12 = 12;
   const timeStr = h12 + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
   const safeBody = String(msg.body || '').replace(/</g, '&lt;');
-  return '<div class="msg ' + (isMine ? 'out' : 'in') + '">' + safeBody + '<span class="msg-time">' + timeStr + '</span></div>';
+  // مرفق الصورة (لو موجود) محمي (authenticated) في Cloudinary، فمش بنحط رابطه
+  // مباشرة — بنعرض مكانه فاضي وبعدين resolveChatAttachments() بتجيب رابط موقّع وتحطه
+  const attachmentHtml = msg.attachmentUrl
+    ? '<div class="chat-attachment" data-message-id="' + msg.id + '" style="width:160px; height:160px; max-width:100%; border-radius:10px; background:var(--cream-2); background-size:cover; background-position:center; margin-bottom:' + (safeBody ? '6px' : '0') + '; display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer;" onclick="openChatAttachmentFullscreen(this)">⏳</div>'
+    : '';
+  return '<div class="msg ' + (isMine ? 'out' : 'in') + '">' + attachmentHtml + safeBody + '<span class="msg-time">' + timeStr + '</span></div>';
+}
+
+// كاش الروابط الموقّعة لمرفقات الشات (بالـ message id) عشان مانطلبش توقيع جديد
+// في كل مرة الشات يتحدّث أو يترسم تاني
+var chatAttachmentSignedUrlCache = {};
+
+async function resolveChatAttachments(messages) {
+  const pending = messages.filter(function (m) { return m.attachmentUrl && !chatAttachmentSignedUrlCache[m.id]; });
+  await Promise.all(pending.map(function (m) {
+    return apiRequest('/chat/attachments/signed-url?messageId=' + m.id).then(function (data) {
+      chatAttachmentSignedUrlCache[m.id] = data.url;
+      const el = document.querySelector('.chat-attachment[data-message-id="' + m.id + '"]');
+      if (el) { el.style.backgroundImage = 'url(' + data.url + ')'; el.textContent = ''; }
+    }).catch(function () { /* لو فشل، تفضل الأيقونة ⏳ ظاهرة بدل ما نكسر باقي المحادثة */ });
+  }));
+}
+
+function openChatAttachmentFullscreen(el) {
+  const messageId = el.getAttribute('data-message-id');
+  const url = chatAttachmentSignedUrlCache[messageId];
+  if (url) window.open(url, '_blank');
 }
 
 var lastLoadedChatSignature = null;
@@ -1580,6 +1652,7 @@ async function loadChatMessages(conversationId, silent) {
       ? cachedMessages.map(chatMessageHTML).join('')
       : '<div class="subtitle" style="text-align:center;">ابدأ المحادثة بأول رسالة</div>';
     wrap.scrollTop = wrap.scrollHeight;
+    resolveChatAttachments(cachedMessages);
     silent = true; // عندنا نسخة معروضة فورًا، اللي جاي مجرد تحديث هادئ في الخلفية
   } else if (!silent) {
     wrap.innerHTML = '<div class="subtitle" style="text-align:center;">بتحمّل الرسايل...</div>';
@@ -1597,6 +1670,7 @@ async function loadChatMessages(conversationId, silent) {
       ? messages.map(chatMessageHTML).join('')
       : '<div class="subtitle" style="text-align:center;">ابدأ المحادثة بأول رسالة</div>';
     wrap.scrollTop = wrap.scrollHeight;
+    resolveChatAttachments(messages);
   } catch (err) {
     if (!silent) wrap.innerHTML = '<div class="subtitle" style="text-align:center;">تعذر تحميل الرسايل: ' + (err.message || '') + '</div>';
   }
@@ -1674,6 +1748,7 @@ function openConversationFromInbox(conversationId, otherUserId) {
   currentChatOtherUserId = otherUserId;
   document.getElementById('chatRecipientName').textContent = name;
   document.getElementById('chatAvatar').textContent = name.trim().slice(0, 2);
+  clearChatAttachment();
   showPage('chat');
   loadChatMessages(conversationId);
   startChatPolling(conversationId);
@@ -1690,6 +1765,7 @@ async function openChatWithUser(userId, name, initials) {
   currentConversationId = null;
   document.getElementById('chatRecipientName').textContent = resolvedName;
   document.getElementById('chatAvatar').textContent = resolvedInitials;
+  clearChatAttachment();
   showPage('chat');
 
   // مجرد فتح شاشة الشات مش المفروض ينشئ محادثة حقيقية — إلا لو فعلاً موجودة من قبل
