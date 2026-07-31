@@ -703,6 +703,12 @@ async function openListingDetail(type, itemId) {
   if (activePage) detailReturnPage = activePage.id.replace('page-', '');
   showPage('equipment-detail');
 
+  // بنسجل مشاهدة للجهاز عشان صاحب الإعلان يعرف كام واحد شاف إعلانه — السيرفر
+  // بيتجاهل مشاهدة المالك نفسه لإعلانه، فمش محتاجين نتأكد من ده هنا
+  if (type === 'equipment') {
+    apiRequest('/equipment/' + itemId + '/view', { method: 'POST' }).catch(function () { /* مش حاجة توقف عرض التفاصيل */ });
+  }
+
   const pageTitle = document.getElementById('equipDetailPageTitle');
   if (pageTitle) pageTitle.textContent = type === 'job' ? 'تفاصيل الوظيفة' : type === 'request' ? 'تفاصيل الطلب' : 'تفاصيل الجهاز';
 
@@ -891,11 +897,13 @@ function myEquipRowHTML(item) {
       ? '<span class="badge" style="background:#FDE3E3; color:#b3261e;">مرفوض</span>'
       : '';
 
+  const viewsText = '👁 ' + (Number(item.viewsCount) || 0).toLocaleString('ar-EG') + ' مشاهدة';
+
   return (
     '<div class="list-row" data-equip-id="' + item.id + '">' +
     '<span>' + icon + '</span>' +
     '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
-    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + '</div></div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + ' — ' + viewsText + '</div></div>' +
     moderationBadge +
     statusBadge +
     '<span class="delete-ico" style="margin-left:2px;" onclick="editMyEquipment(\'' + item.id + '\')">✏️</span>' +
