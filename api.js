@@ -143,6 +143,7 @@ async function handleProfileAvatarSelect(input) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'avatar');
     const res = await fetch(API_BASE_URL + '/uploads', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + getAuthToken() },
@@ -193,6 +194,7 @@ async function handleRegisterAvatarSelect(input) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'avatar');
     const res = await fetch(API_BASE_URL + '/uploads/registration', { method: 'POST', body: formData });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
@@ -218,6 +220,7 @@ async function handleRegistrationDocSelect(input, key, statusId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'doc');
     const res = await fetch(API_BASE_URL + '/uploads/registration', { method: 'POST', body: formData });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
@@ -1073,6 +1076,7 @@ async function handleEquipPhotoSelect(input, slotIndex) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'equipment');
     const res = await fetch(API_BASE_URL + '/uploads', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + getAuthToken() },
@@ -1124,6 +1128,7 @@ async function handleEquipDocSelect(input, key, statusId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'equipment-doc');
     const res = await fetch(API_BASE_URL + '/uploads', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + getAuthToken() },
@@ -1203,6 +1208,7 @@ async function handleSupportAttachmentSelect(input) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'support');
     const res = await fetch(API_BASE_URL + '/uploads', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + getAuthToken() },
@@ -1244,6 +1250,7 @@ async function handleReportDocSelect(input, key, statusId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('purpose', 'report-doc');
     const res = await fetch(API_BASE_URL + '/uploads', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + getAuthToken() },
