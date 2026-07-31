@@ -5,6 +5,14 @@
 
 const API_BASE_URL = 'https://survo-production.up.railway.app/api';
 
+// أي نص جاي من مستخدم (عنوان إعلان، وصف، اسم، إلخ) لازم يعدي من هنا قبل ما يتحط
+// في innerHTML، عشان نمنع حقن HTML/script من مستخدم لمستخدم تاني (stored XSS)
+function escapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
 // ---------- تخزين التوكن ----------
 function getAuthToken() {
   return localStorage.getItem('survo_token');
@@ -119,7 +127,7 @@ function renderUserProfile(user) {
   var specEl = document.getElementById('profileSpecialties');
   if (specEl) {
     specEl.innerHTML = (user.specialties && user.specialties.length)
-      ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
+      ? user.specialties.map(function (s) { return '<span class="tag">' + escapeHtml(s) + '</span>'; }).join('')
       : '<span class="tag" style="color:var(--ink-faint);">لسه مفيش تخصصات مضافة</span>';
   }
 
@@ -330,7 +338,7 @@ function openEditProfile() {
     if (bioInput) bioInput.value = user.bio || '';
     if (tagsWrap) {
       tagsWrap.innerHTML = (user.specialties || []).map(function (s) {
-        return '<span class="tag" onclick="removeSpecialtyTag(this)" style="cursor:pointer;">' + s + ' ✕</span>';
+        return '<span class="tag" onclick="removeSpecialtyTag(this)" style="cursor:pointer;">' + escapeHtml(s) + ' ✕</span>';
       }).join('');
     }
   }
@@ -391,7 +399,7 @@ function equipmentCardHTML(item) {
   const badgeClass = isRent ? 'badge-rent' : 'badge-sale';
   const badgeLabel = isRent ? 'للإيجار' : 'للبيع';
   const thumb = item.images && item.images[0]
-    ? '<div class="item-thumb" style="background-image:url(' + item.images[0] + '); background-size:cover; background-position:center;"></div>'
+    ? '<div class="item-thumb" style="background-image:url(' + escapeHtml(item.images[0]) + '); background-size:cover; background-position:center;"></div>'
     : '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">🛠️</div>';
 
   const owner = item.owner || {};
@@ -403,17 +411,18 @@ function equipmentCardHTML(item) {
     : "openEquipmentDetail('" + item.id + "')";
 
   return (
-    '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
+    '<div class="item-card card" data-cat="' + escapeHtml(item.category) + '" onclick="' + clickHandler + '">' +
     thumb +
     '<span class="badge ' + badgeClass + '">' + badgeLabel + '</span>' +
-    '<div class="item-name">' + (item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
-    '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
+    '<div class="item-name">' + escapeHtml(item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
+    '<div class="item-loc">📍 ' + escapeHtml(item.governorate || '—') + '</div>' +
     '<div class="item-price">' + price + '</div>' +
     '</div>'
   );
 }
 
 function fillListingDetailContact(person) {
+  cachePartialProfile(person);
   const initials = (person.fullName || 'م ص').trim().slice(0, 2);
   document.getElementById('equipDetailOwnerAvatar').textContent = initials;
   document.getElementById('equipDetailOwnerName').textContent = person.fullName || 'مستخدم';
@@ -422,14 +431,16 @@ function fillListingDetailContact(person) {
   const verifiedBadge = document.getElementById('equipDetailOwnerVerified');
   verifiedBadge.style.display = person.verification === 'verified' ? '' : 'none';
 
+  // بنستخدم .onclick بدل بناء نص كود جافاسكريبت (setAttribute) عشان أي بيانات
+  // جاية من المستخدم (زي الاسم أو رقم الموبايل) ما تقدرش تكسر أو تحقن كود
   const ownerRow = document.getElementById('equipDetailOwnerRow');
-  ownerRow.setAttribute('onclick', "openRealPublicProfile('" + person.id + "')");
+  ownerRow.onclick = function () { openRealPublicProfile(person.id); };
 
   const msgBtn = document.getElementById('equipDetailMsgBtn');
-  msgBtn.setAttribute('onclick', "openChatWithUser('" + person.id + "', '" + (person.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
+  msgBtn.onclick = function () { openChatWithUser(person.id); };
 
   const callBtn = document.getElementById('equipDetailCallBtn');
-  callBtn.setAttribute('onclick', "callSeller('" + (person.phone || '') + "')");
+  callBtn.onclick = function () { callSeller(person.phone || ''); };
 }
 
 async function openEquipmentDetail(itemId) {
@@ -647,8 +658,8 @@ function myRequestRowHTML(item) {
   return (
     '<div class="list-row" style="cursor:pointer;" onclick="openListingDetail(\'request\', \'' + item.id + '\')">' +
     '<span style="font-size:18px;">📨</span>' +
-    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + item.brand : '') + '</div>' +
-    '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">طلب: ' + escapeHtml(CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + escapeHtml(item.brand) : '') + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + '</div></div>' +
     '<span style="color:var(--ink-faint);">←</span>' +
     '</div>'
   );
@@ -751,12 +762,12 @@ function requestCardHTML(item) {
   }
 
   return (
-    '<div class="item-card card" data-cat="' + item.category + '" onclick="' + clickHandler + '">' +
+    '<div class="item-card card" data-cat="' + escapeHtml(item.category) + '" onclick="' + clickHandler + '">' +
     '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">📨</div>' +
     '<span class="badge" style="background:#E9EEF7; color:var(--navy-3);">طلب</span>' +
-    '<div class="item-name">طلب: ' + (CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + item.brand : '') + '</div>' +
-    '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
-    '<div class="item-price" style="font-size:11.5px;">' + priceText + '</div>' +
+    '<div class="item-name">طلب: ' + escapeHtml(CATEGORY_LABELS[item.category] || item.category) + (item.brand ? ' — ' + escapeHtml(item.brand) : '') + '</div>' +
+    '<div class="item-loc">📍 ' + escapeHtml(item.governorate || '—') + '</div>' +
+    '<div class="item-price" style="font-size:11.5px;">' + escapeHtml(priceText) + '</div>' +
     '</div>'
   );
 }
@@ -774,9 +785,9 @@ function jobCardHTML(item) {
     '<div class="item-card card" data-cat="jobs" onclick="' + clickHandler + '">' +
     '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">💼</div>' +
     '<span class="badge" style="background:#E9F7EF; color:var(--green);">وظيفة</span>' +
-    '<div class="item-name">' + item.title + '</div>' +
-    '<div class="item-loc">📍 ' + (item.governorate || '—') + '</div>' +
-    '<div class="item-price" style="font-size:11.5px;">' + (item.salary ? formatMoney(item.salary, ' ج') : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '')) + '</div>' +
+    '<div class="item-name">' + escapeHtml(item.title) + '</div>' +
+    '<div class="item-loc">📍 ' + escapeHtml(item.governorate || '—') + '</div>' +
+    '<div class="item-price" style="font-size:11.5px;">' + escapeHtml(item.salary ? formatMoney(item.salary, ' ج') : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '')) + '</div>' +
     '</div>'
   );
 }
@@ -880,8 +891,8 @@ function myEquipRowHTML(item) {
   return (
     '<div class="list-row" data-equip-id="' + item.id + '">' +
     '<span>' + icon + '</span>' +
-    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
-    '<div style="font-size:10.5px; color:var(--ink-soft);">' + priceText + '</div></div>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + '</div></div>' +
     moderationBadge +
     statusBadge +
     '<span class="delete-ico" style="margin-left:2px;" onclick="editMyEquipment(\'' + item.id + '\')">✏️</span>' +
@@ -1382,7 +1393,7 @@ async function submitInquiry() {
         '<div style="display:flex; gap:9px; align-items:flex-start;">' +
         '<span style="font-size:18px;">⚠️</span>' +
         '<div><div style="font-size:13px; font-weight:700; color:var(--rust);">تحذير: الجهاز ده مبلّغ عنه كـ ' + statusLabel + '</div>' +
-        '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7;">' + (DEVICE_CATEGORY_LABELS[data.category] || data.category) + (data.brand ? ' — ' + data.brand : '') + '. متنصحش تكمل شراء أو إيجار الجهاز ده.</div></div>' +
+        '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.7;">' + escapeHtml(DEVICE_CATEGORY_LABELS[data.category] || data.category) + (data.brand ? ' — ' + escapeHtml(data.brand) : '') + '. متنصحش تكمل شراء أو إيجار الجهاز ده.</div></div>' +
         '</div></div>';
     }
   } catch (err) {
@@ -1476,26 +1487,27 @@ function stopNotificationPolling() {
 function notificationRowHTML(n) {
   const isRead = !!n.readAt;
   const hasContact = n.contactUser && n.contactUser.id;
+  if (hasContact) cachePartialProfile(n.contactUser);
   const contactId = hasContact ? n.contactUser.id : '';
-  const contactName = hasContact ? n.contactUser.fullName.replace(/'/g, "\\'") : '';
-  const rowClickArgs = "'" + n.id + "', '" + contactId + "', '" + contactName + "'";
+  // بنمرر بس رقم الـ id (UUID آمن) جوه الـ onclick، والاسم بيتجاب من الكاش وقت الفتح
+  const rowClickArgs = "'" + n.id + "', '" + contactId + "'";
   const contactBtn = hasContact
     ? '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="event.stopPropagation(); openNotificationTarget(' + rowClickArgs + ')">تواصل معاه</button>'
     : '';
   return (
     '<div class="list-row" style="' + (isRead ? 'opacity:0.6;' : '') + ' cursor:pointer;" onclick="openNotificationTarget(' + rowClickArgs + ')">' +
     '<span>' + (isRead ? '✓' : '🔔') + '</span>' +
-    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">' + n.title + '</div>' +
-    (n.body ? '<div style="font-size:10.5px; color:var(--ink-soft);">' + n.body + '</div>' : '') +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">' + escapeHtml(n.title) + '</div>' +
+    (n.body ? '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(n.body) + '</div>' : '') +
     '</div>' + contactBtn +
     '</div>'
   );
 }
 
-function openNotificationTarget(notificationId, contactUserId, contactUserName) {
+function openNotificationTarget(notificationId, contactUserId) {
   markNotificationRead(notificationId);
   if (contactUserId) {
-    openChatWithUser(contactUserId, contactUserName);
+    openChatWithUser(contactUserId);
   }
 }
 
@@ -1603,14 +1615,13 @@ function inboxRowHTML(conv) {
   const lastMsg = (conv.messages && conv.messages[0]) || null;
   const preview = lastMsg ? lastMsg.body : 'ابدأ المحادثة';
   const initials = (other.fullName || 'م ص').trim().slice(0, 2);
-  const name = (other.fullName || '').replace(/'/g, "\\'");
 
   return (
-    '<div class="list-row" style="cursor:pointer;" onclick="openConversationFromInbox(\'' + conv.id + '\', \'' + other.id + '\', \'' + name + '\', \'' + initials + '\')">' +
-    '<div class="avatar" style="width:34px; height:34px; font-size:12px;">' + initials + '</div>' +
+    '<div class="list-row" style="cursor:pointer;" onclick="openConversationFromInbox(\'' + conv.id + '\', \'' + other.id + '\')">' +
+    '<div class="avatar" style="width:34px; height:34px; font-size:12px;">' + escapeHtml(initials) + '</div>' +
     '<div style="flex:1;">' +
-    '<div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (other.fullName || 'مستخدم') + '</div>' +
-    '<div style="font-size:10.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px;">' + preview + '</div>' +
+    '<div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(other.fullName || 'مستخدم') + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px;">' + escapeHtml(preview) + '</div>' +
     '</div>' +
     '</div>'
   );
@@ -1649,11 +1660,13 @@ async function loadInbox() {
   }
 }
 
-function openConversationFromInbox(conversationId, otherUserId, name, initials) {
+function openConversationFromInbox(conversationId, otherUserId) {
+  const cached = publicProfileCache[otherUserId] || {};
+  const name = cached.fullName || 'مستخدم';
   currentConversationId = conversationId;
   currentChatOtherUserId = otherUserId;
   document.getElementById('chatRecipientName').textContent = name;
-  document.getElementById('chatAvatar').textContent = initials;
+  document.getElementById('chatAvatar').textContent = name.trim().slice(0, 2);
   showPage('chat');
   loadChatMessages(conversationId);
   startChatPolling(conversationId);
@@ -1661,10 +1674,15 @@ function openConversationFromInbox(conversationId, otherUserId, name, initials) 
 
 async function openChatWithUser(userId, name, initials) {
   if (!userId) return;
+  // بنعتمد على الكاش لجلب الاسم بدل ما نستقبله كنص جاهز في الـ onclick، عشان
+  // مانحطش بيانات المستخدم (زي الاسم) جوه string كود جافاسكريبت من غير داعي
+  const cached = publicProfileCache[userId] || {};
+  const resolvedName = name || cached.fullName || 'مستخدم';
+  const resolvedInitials = initials || resolvedName.trim().slice(0, 2);
   currentChatOtherUserId = userId;
   currentConversationId = null;
-  document.getElementById('chatRecipientName').textContent = name;
-  document.getElementById('chatAvatar').textContent = initials || (name || '').trim().slice(0, 2);
+  document.getElementById('chatRecipientName').textContent = resolvedName;
+  document.getElementById('chatAvatar').textContent = resolvedInitials;
   showPage('chat');
 
   // مجرد فتح شاشة الشات مش المفروض ينشئ محادثة حقيقية — إلا لو فعلاً موجودة من قبل
@@ -1702,10 +1720,10 @@ function reviewRowHTML(r) {
     '<div class="list-row" style="align-items:flex-start;' + (clickHandler ? ' cursor:pointer;' : '') + '"' + (clickHandler ? ' onclick="' + clickHandler + '"' : '') + '>' +
     '<div style="flex:1;">' +
     '<div style="display:flex; justify-content:space-between;">' +
-    '<span style="font-size:12.5px; font-weight:700; color:var(--navy);">' + (r.fromUser ? r.fromUser.fullName : 'مستخدم') + '</span>' +
+    '<span style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(r.fromUser ? r.fromUser.fullName : 'مستخدم') + '</span>' +
     '<span style="font-size:11px; color:var(--amber-dark);">' + stars + '</span>' +
     '</div>' +
-    (r.comment ? '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">' + r.comment + '</div>' : '') +
+    (r.comment ? '<div style="font-size:11.5px; color:var(--ink-soft); margin-top:4px;">' + escapeHtml(r.comment) + '</div>' : '') +
     '<div style="font-size:10px; color:var(--ink-faint); margin-top:4px;">' + date + '</div>' +
     '</div></div>'
   );
@@ -1811,13 +1829,13 @@ function renderPublicProfile(user) {
   document.getElementById('pubResponse').textContent = (user.responseRate === null || user.responseRate === undefined) ? '—' : ('٪' + user.responseRate);
 
   document.getElementById('pubTags').innerHTML = (user.specialties && user.specialties.length)
-    ? user.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('')
+    ? user.specialties.map(function (s) { return '<span class="tag">' + escapeHtml(s) + '</span>'; }).join('')
     : '<span class="tag" style="color:var(--ink-faint);">لا يوجد</span>';
 
   document.getElementById('pubBio').textContent = user.bio || 'لا يوجد نبذة';
 
-  document.getElementById('pubChatBtn').setAttribute('onclick', "openChatWithUser('" + user.id + "', '" + (user.fullName || '').replace(/'/g, "\\'") + "', '" + initials + "')");
-  document.getElementById('pubCallBtn').setAttribute('onclick', "callSeller('" + (user.phone || '') + "')");
+  document.getElementById('pubChatBtn').onclick = function () { openChatWithUser(user.id); };
+  document.getElementById('pubCallBtn').onclick = function () { callSeller(user.phone || ''); };
 }
 
 async function openRealPublicProfile(userId) {
