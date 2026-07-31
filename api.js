@@ -318,7 +318,9 @@ async function loginUser() {
     refreshCurrentUser();
     startNotificationPolling();
     showToast('تم تسجيل الدخول ✓');
-    setTimeout(function () { showPage('home'); }, 500);
+    // لازم نعيد تحميل الإعلانات بعد الدخول عشان أي كارت اتبنى وقت جلسة حساب
+    // تاني (زي كارت "ده إعلانك انت") يترسم تاني بحساب المستخدم الحالي الصح
+    setTimeout(function () { showPage('home'); loadHomeEquipment(); }, 500);
   } catch (err) {
     showToast(err.message || 'رقم الهاتف أو كلمة المرور غلط');
   }
