@@ -2143,13 +2143,13 @@ function closeHandoverLog() {
 }
 
 function dealTypeLabel(dealType) {
-  return dealType === 'sale' ? 'بيع' : 'إيجار';
+  return dealType === 'sale' ? 'بيع أو شراء' : 'إيجار';
 }
 
 function dealTypePickerHTML() {
   return (
     '<div class="btn-row" style="margin-bottom:10px;">' +
-    '<button class="btn" id="handoverDealTypeSaleBtn" onclick="setHandoverDealType(\'sale\')">🤝 بيع</button>' +
+    '<button class="btn" id="handoverDealTypeSaleBtn" onclick="setHandoverDealType(\'sale\')">🤝 بيع أو شراء</button>' +
     '<button class="btn" id="handoverDealTypeRentBtn" onclick="setHandoverDealType(\'rent\')">📅 إيجار</button>' +
     '</div>'
   );
@@ -2160,8 +2160,8 @@ function dealStatusHTML(deal) {
   if (!deal || deal.status === 'cancelled') {
     return (
       '<div class="card" style="margin-bottom:14px;">' +
-      '<div class="section-label" style="margin:0 0 8px;">' + (deal ? 'الاتفاق اتلغى' : 'لسه معملتوش اتفاق') + '</div>' +
-      '<div class="subtitle" style="margin-top:-4px; margin-bottom:10px;">لازم تتفقوا وتأكدوا نوع الصفقة الأول قبل ما تقدروا توثقوا حالة الجهاز</div>' +
+      '<div class="section-label" style="margin:0 0 8px;">' + (deal ? 'الاتفاق اتلغى' : 'محتاجين تتفقوا وتأكدوا نوع الصفقة الأول') + '</div>' +
+      '<div class="subtitle" style="margin-top:-4px; margin-bottom:10px;">بعد ما تتفقوا وتأكدوا، هتقدروا توثقوا حالة الجهاز بالصور وقت التسليم والاستلام</div>' +
       dealTypePickerHTML() +
       '<button class="btn btn-primary btn-block" onclick="proposeHandoverDeal()">' + (deal ? 'اقترح اتفاق جديد' : 'اقترح الاتفاق') + '</button>' +
       '</div>'
