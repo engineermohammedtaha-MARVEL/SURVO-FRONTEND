@@ -2497,7 +2497,7 @@ async function submitHandoverEntry() {
     renderHandoverPhotoSlots();
     renderHandoverChecklist();
     updateHandoverCertificateStatus();
-    loadHandoverTimeline();
+    loadHandoverDeal();
   } catch (err) {
     showToast(err.message || 'تعذر حفظ التوثيق');
   } finally {
