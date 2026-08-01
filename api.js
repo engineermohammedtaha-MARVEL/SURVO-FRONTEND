@@ -2075,6 +2075,8 @@ var HANDOVER_CHECKLIST_ITEMS = [
 var handoverChecklistState = {};
 var handoverCertificateUrl = null;
 var handoverCertificateUploading = false;
+var handoverCurrentDeal = null;
+var handoverDealTypeSelected = 'rent';
 
 function openHandoverLogFromDetail() {
   if (currentDetailType !== 'equipment' || !currentDetailId) return;
@@ -2115,6 +2117,7 @@ function openHandoverLog(equipmentId, ownerId, otherPartyId, isOwnerView, return
   const item = listingDetailCache['equipment:' + equipmentId];
   const titleEl = document.getElementById('handoverEquipTitle');
   if (titleEl) titleEl.textContent = item ? (item.title || 'جهاز مساحة') : 'جهاز مساحة';
+  handoverDealTypeSelected = (item && item.listingType) || 'rent';
 
   const partiesEl = document.getElementById('handoverPartiesLine');
   const pickerEl = document.getElementById('handoverPartnerPicker');
@@ -2131,12 +2134,136 @@ function openHandoverLog(equipmentId, ownerId, otherPartyId, isOwnerView, return
     const cached = otherPartyId ? publicProfileCache[otherPartyId] : null;
     const otherName = cached ? cached.fullName : 'الطرف التاني';
     if (partiesEl) partiesEl.textContent = isOwnerView ? ('أنت ← ' + otherName) : (otherName + ' ← أنت');
-    loadHandoverTimeline();
+    loadHandoverDeal();
   }
 }
 
 function closeHandoverLog() {
   showPage(handoverReturnPage || 'home');
+}
+
+function dealTypeLabel(dealType) {
+  return dealType === 'sale' ? 'بيع' : 'إيجار';
+}
+
+function dealTypePickerHTML() {
+  return (
+    '<div class="btn-row" style="margin-bottom:10px;">' +
+    '<button class="btn" id="handoverDealTypeSaleBtn" onclick="setHandoverDealType(\'sale\')">🤝 بيع</button>' +
+    '<button class="btn" id="handoverDealTypeRentBtn" onclick="setHandoverDealType(\'rent\')">📅 إيجار</button>' +
+    '</div>'
+  );
+}
+
+function dealStatusHTML(deal) {
+  const currentUser = getCurrentUser();
+  if (!deal || deal.status === 'cancelled') {
+    return (
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="section-label" style="margin:0 0 8px;">' + (deal ? 'الاتفاق اتلغى' : 'لسه معملتوش اتفاق') + '</div>' +
+      '<div class="subtitle" style="margin-top:-4px; margin-bottom:10px;">لازم تتفقوا وتأكدوا نوع الصفقة الأول قبل ما تقدروا توثقوا حالة الجهاز</div>' +
+      dealTypePickerHTML() +
+      '<button class="btn btn-primary btn-block" onclick="proposeHandoverDeal()">' + (deal ? 'اقترح اتفاق جديد' : 'اقترح الاتفاق') + '</button>' +
+      '</div>'
+    );
+  }
+  if (deal.status === 'confirmed') {
+    return (
+      '<div class="info-box" style="margin-bottom:14px;">' +
+      '<span>✅</span>' +
+      '<span>اتفاق مؤكد من الطرفين — نوع الصفقة: ' + dealTypeLabel(deal.dealType) + '. تقدروا دلوقتي توثقوا حالة الجهاز.</span>' +
+      '</div>'
+    );
+  }
+  const isOwnerSide = currentUser && currentUser.id === deal.ownerId;
+  const myConfirmed = isOwnerSide ? deal.ownerConfirmed : deal.otherPartyConfirmed;
+  const theirConfirmed = isOwnerSide ? deal.otherPartyConfirmed : deal.ownerConfirmed;
+  if (myConfirmed && !theirConfirmed) {
+    return (
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="section-label" style="margin:0 0 8px;">في انتظار تأكيد الطرف التاني</div>' +
+      '<div class="subtitle" style="margin-top:-4px;">نوع الصفقة المقترحة: ' + dealTypeLabel(deal.dealType) + '</div>' +
+      '<button class="btn" style="margin-top:10px; color:var(--red);" onclick="cancelHandoverDeal(\'' + deal.id + '\')">إلغاء الاقتراح</button>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="card" style="margin-bottom:14px;">' +
+    '<div class="section-label" style="margin:0 0 8px;">فيه اقتراح اتفاق مستني تأكيدك</div>' +
+    '<div class="subtitle" style="margin-top:-4px;">نوع الصفقة المقترحة: ' + dealTypeLabel(deal.dealType) + '</div>' +
+    '<div class="btn-row" style="margin-top:10px;">' +
+    '<button class="btn" style="color:var(--red);" onclick="cancelHandoverDeal(\'' + deal.id + '\')">رفض</button>' +
+    '<button class="btn btn-primary" onclick="confirmHandoverDeal(\'' + deal.id + '\')">تأكيد الاتفاق</button>' +
+    '</div>' +
+    '</div>'
+  );
+}
+
+function setHandoverDealType(type) {
+  handoverDealTypeSelected = type;
+  updateHandoverDealTypeButtons();
+}
+
+function updateHandoverDealTypeButtons() {
+  const saleBtn = document.getElementById('handoverDealTypeSaleBtn');
+  const rentBtn = document.getElementById('handoverDealTypeRentBtn');
+  if (saleBtn) saleBtn.className = handoverDealTypeSelected === 'sale' ? 'btn btn-primary' : 'btn';
+  if (rentBtn) rentBtn.className = handoverDealTypeSelected === 'rent' ? 'btn btn-primary' : 'btn';
+}
+
+async function loadHandoverDeal() {
+  const sectionEl = document.getElementById('handoverDealSection');
+  const formEl = document.getElementById('handoverFormSection');
+  if (!sectionEl) return;
+  sectionEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">بتحمّل حالة الاتفاق...</div>';
+  try {
+    const query = handoverIsOwnerView ? ('?otherPartyId=' + encodeURIComponent(handoverOtherPartyId)) : '';
+    const data = await apiRequest('/equipment/' + handoverEquipmentId + '/deal' + query);
+    handoverCurrentDeal = data.item;
+    sectionEl.innerHTML = dealStatusHTML(handoverCurrentDeal);
+    updateHandoverDealTypeButtons();
+    const isConfirmed = handoverCurrentDeal && handoverCurrentDeal.status === 'confirmed';
+    if (formEl) formEl.style.display = isConfirmed ? '' : 'none';
+    loadHandoverTimeline();
+  } catch (err) {
+    sectionEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">تعذر تحميل حالة الاتفاق: ' + (err.message || '') + '</div>';
+  }
+}
+
+async function proposeHandoverDeal() {
+  try {
+    const body = { dealType: handoverDealTypeSelected };
+    if (handoverIsOwnerView) body.otherPartyId = handoverOtherPartyId;
+    await apiRequest('/equipment/' + handoverEquipmentId + '/deal', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    showToast('تم اقتراح الاتفاق ✓');
+    loadHandoverDeal();
+  } catch (err) {
+    showToast(err.message || 'تعذر اقتراح الاتفاق');
+  }
+}
+
+async function confirmHandoverDeal(dealId) {
+  try {
+    await apiRequest('/equipment/deals/' + dealId + '/confirm', { method: 'POST' });
+    showToast('تم تأكيد الاتفاق ✓');
+    loadHandoverDeal();
+  } catch (err) {
+    showToast(err.message || 'تعذر تأكيد الاتفاق');
+  }
+}
+
+async function cancelHandoverDeal(dealId) {
+  if (!confirm('متأكد إنك عايز تلغي/ترفض الاتفاق ده؟')) return;
+  try {
+    await apiRequest('/equipment/deals/' + dealId + '/cancel', { method: 'POST' });
+    showToast('تم الإلغاء');
+    loadHandoverDeal();
+  } catch (err) {
+    showToast(err.message || 'تعذر الإلغاء');
+  }
 }
 
 async function loadHandoverPartnerList() {

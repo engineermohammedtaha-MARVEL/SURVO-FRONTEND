@@ -616,36 +616,39 @@
         </div>
 
         <div id="handoverMainWrap">
+          <div id="handoverDealSection"></div>
           <div id="handoverTimeline"></div>
 
-          <div class="section-label">توثيق جديد</div>
-          <div class="btn-row" style="margin-bottom:12px;">
-            <button class="btn" id="handoverTypeCheckoutBtn" onclick="setHandoverType('checkout')">📤 تسليم</button>
-            <button class="btn" id="handoverTypeCheckinBtn" onclick="setHandoverType('checkin')">📥 استلام</button>
-          </div>
-
-          <div class="subtitle" style="margin-top:-4px;">صوّر الجهاز من زوايا مختلفة — ده دليلك لو حصل خلاف.</div>
-          <div class="grid2" style="margin-bottom:12px;" id="handoverPhotoSlots"></div>
-
-          <div class="section-label">قائمة فحص سريعة</div>
-          <div id="handoverChecklist"></div>
-
-          <div class="upload-row" style="margin-top:9px;" id="handoverCertificateRow">
-            <span>📎</span>
-            <div style="flex:1;">
-              <div style="font-size:12.5px; font-weight:700;">إرفاق صورة محضر الاستلام والتسليم</div>
-              <div style="font-size:10.5px; color:var(--ink-faint);" id="handoverCertificateStatus">موقّع من الطرفين (المكتب والمستلم)</div>
+          <div id="handoverFormSection" style="display:none;">
+            <div class="section-label">توثيق جديد</div>
+            <div class="btn-row" style="margin-bottom:12px;">
+              <button class="btn" id="handoverTypeCheckoutBtn" onclick="setHandoverType('checkout')">📤 تسليم</button>
+              <button class="btn" id="handoverTypeCheckinBtn" onclick="setHandoverType('checkin')">📥 استلام</button>
             </div>
-            <label style="cursor:pointer;">
-              <i id="handoverCertificateIcon">⬆</i>
-              <input type="file" accept="image/*" style="display:none;" onchange="handleHandoverCertificateSelect(this)">
-            </label>
+
+            <div class="subtitle" style="margin-top:-4px;">صوّر الجهاز من زوايا مختلفة — ده دليلك لو حصل خلاف.</div>
+            <div class="grid2" style="margin-bottom:12px;" id="handoverPhotoSlots"></div>
+
+            <div class="section-label">قائمة فحص سريعة</div>
+            <div id="handoverChecklist"></div>
+
+            <div class="upload-row" style="margin-top:9px;" id="handoverCertificateRow">
+              <span>📎</span>
+              <div style="flex:1;">
+                <div style="font-size:12.5px; font-weight:700;">إرفاق صورة محضر الاستلام والتسليم</div>
+                <div style="font-size:10.5px; color:var(--ink-faint);" id="handoverCertificateStatus">موقّع من الطرفين (المكتب والمستلم)</div>
+              </div>
+              <label style="cursor:pointer;">
+                <i id="handoverCertificateIcon">⬆</i>
+                <input type="file" accept="image/*" style="display:none;" onchange="handleHandoverCertificateSelect(this)">
+              </label>
+            </div>
+
+            <span class="field-label" style="margin-top:14px; display:block;">ملاحظات (اختياري)</span>
+            <textarea class="field-gap" id="handoverNotesInput" placeholder="مثال: يوجد خدش بسيط في الجانب الأيمن"></textarea>
+
+            <button class="btn btn-primary btn-block" id="handoverSubmitBtn" onclick="submitHandoverEntry()">حفظ التوثيق</button>
           </div>
-
-          <span class="field-label" style="margin-top:14px; display:block;">ملاحظات (اختياري)</span>
-          <textarea class="field-gap" id="handoverNotesInput" placeholder="مثال: يوجد خدش بسيط في الجانب الأيمن"></textarea>
-
-          <button class="btn btn-primary btn-block" id="handoverSubmitBtn" onclick="submitHandoverEntry()">حفظ التوثيق</button>
         </div>
       </div>
 
@@ -1445,8 +1448,8 @@
   </div>
 </div>
 
-<script src="api.js?v=43"></script>
-<script src="script.js?v=43"></script>
+<script src="api.js?v=44"></script>
+<script src="script.js?v=44"></script>
 
 </body>
 </html>
