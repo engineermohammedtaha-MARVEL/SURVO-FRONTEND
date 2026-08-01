@@ -2065,6 +2065,17 @@ var handoverPendingPhotos = []; // { previewUrl, uploadedUrl, uploading }
 var handoverSignedPhotoCache = {};
 var HANDOVER_MAX_PHOTOS = 4;
 
+// نفس بنود قائمة الفحص السريعة اللي كانت متفق عليها في تصميم الشاشة الأصلي
+var HANDOVER_CHECKLIST_ITEMS = [
+  { key: 'working', label: 'الجهاز شغّال ومفيش كسور ظاهرة', defaultChecked: true },
+  { key: 'battery', label: 'الشاحن والبطاريات موجودة', defaultChecked: true },
+  { key: 'tripod', label: 'الحامل الثلاثي (Tripod) موجود', defaultChecked: false },
+  { key: 'certificate_signed', label: 'تم توقيع محضر الاستلام/التسليم من الطرفين', defaultChecked: false },
+];
+var handoverChecklistState = {};
+var handoverCertificateUrl = null;
+var handoverCertificateUploading = false;
+
 function openHandoverLogFromDetail() {
   if (currentDetailType !== 'equipment' || !currentDetailId) return;
   const item = listingDetailCache['equipment:' + currentDetailId];
@@ -2088,11 +2099,17 @@ function openHandoverLog(equipmentId, ownerId, otherPartyId, isOwnerView, return
   handoverReturnPage = returnPage || handoverReturnPage || 'home';
   handoverPendingPhotos = [];
   handoverSelectedType = 'checkout';
+  handoverCertificateUrl = null;
+  handoverCertificateUploading = false;
+  handoverChecklistState = {};
+  HANDOVER_CHECKLIST_ITEMS.forEach(function (item) { handoverChecklistState[item.key] = item.defaultChecked; });
 
   showPage('handover');
   const notesEl = document.getElementById('handoverNotesInput');
   if (notesEl) notesEl.value = '';
   renderHandoverPhotoSlots();
+  renderHandoverChecklist();
+  updateHandoverCertificateStatus();
   updateHandoverTypeButtons();
 
   const item = listingDetailCache['equipment:' + equipmentId];
@@ -2201,6 +2218,67 @@ function removeHandoverPendingPhoto(idx) {
   renderHandoverPhotoSlots();
 }
 
+function renderHandoverChecklist() {
+  const wrap = document.getElementById('handoverChecklist');
+  if (!wrap) return;
+  wrap.innerHTML = HANDOVER_CHECKLIST_ITEMS.map(function (item) {
+    const checked = handoverChecklistState[item.key] ? 'checked' : '';
+    return (
+      '<label class="check-row">' +
+      '<input type="checkbox" ' + checked + ' onchange="toggleHandoverChecklistItem(\'' + item.key + '\', this.checked)">' +
+      escapeHtml(item.label) +
+      '</label>'
+    );
+  }).join('');
+}
+
+function toggleHandoverChecklistItem(key, checked) {
+  handoverChecklistState[key] = !!checked;
+}
+
+function updateHandoverCertificateStatus() {
+  const statusEl = document.getElementById('handoverCertificateStatus');
+  const iconEl = document.getElementById('handoverCertificateIcon');
+  if (!statusEl || !iconEl) return;
+  if (handoverCertificateUploading) {
+    statusEl.textContent = 'بيترفع...';
+    iconEl.textContent = '⏳';
+  } else if (handoverCertificateUrl) {
+    statusEl.textContent = 'تم إرفاق المحضر ✓';
+    iconEl.textContent = '✓';
+  } else {
+    statusEl.textContent = 'موقّع من الطرفين (المكتب والمستلم)';
+    iconEl.textContent = '⬆';
+  }
+}
+
+async function handleHandoverCertificateSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  handoverCertificateUploading = true;
+  updateHandoverCertificateStatus();
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', 'handover');
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+    handoverCertificateUrl = data.url;
+  } catch (err) {
+    showToast(err.message || 'تعذر رفع صورة المحضر');
+  } finally {
+    handoverCertificateUploading = false;
+    updateHandoverCertificateStatus();
+  }
+}
+
 async function handleHandoverPhotoSelect(input) {
   const file = input.files && input.files[0];
   if (!file) return;
@@ -2243,10 +2321,23 @@ async function submitHandoverEntry() {
   const notesEl = document.getElementById('handoverNotesInput');
   const notes = notesEl ? notesEl.value.trim() : '';
 
+  if (handoverCertificateUploading) {
+    showToast('استنى صورة المحضر تخلص رفع الأول');
+    return;
+  }
+
+  const checklist = HANDOVER_CHECKLIST_ITEMS.filter(function (item) { return handoverChecklistState[item.key]; }).map(function (item) { return item.key; });
+
   const submitBtn = document.getElementById('handoverSubmitBtn');
   if (submitBtn) submitBtn.disabled = true;
   try {
-    const body = { type: handoverSelectedType, photos: uploadedPhotos, notes: notes || undefined };
+    const body = {
+      type: handoverSelectedType,
+      photos: uploadedPhotos,
+      notes: notes || undefined,
+      checklist: checklist,
+      certificateUrl: handoverCertificateUrl || undefined,
+    };
     if (handoverIsOwnerView) body.otherPartyId = handoverOtherPartyId;
     await apiRequest('/equipment/' + handoverEquipmentId + '/handovers', {
       method: 'POST',
@@ -2254,8 +2345,13 @@ async function submitHandoverEntry() {
     });
     showToast('تم حفظ التوثيق ✓');
     handoverPendingPhotos = [];
+    handoverCertificateUrl = null;
+    handoverChecklistState = {};
+    HANDOVER_CHECKLIST_ITEMS.forEach(function (item) { handoverChecklistState[item.key] = item.defaultChecked; });
     if (notesEl) notesEl.value = '';
     renderHandoverPhotoSlots();
+    renderHandoverChecklist();
+    updateHandoverCertificateStatus();
     loadHandoverTimeline();
   } catch (err) {
     showToast(err.message || 'تعذر حفظ التوثيق');
@@ -2272,14 +2368,25 @@ function handoverEntryHTML(entry) {
   const photosHTML = entry.photos.map(function (_, idx) {
     return '<div class="photo-slot done" style="width:60px; height:60px;" id="handoverPhoto_' + entry.id + '_' + idx + '"></div>';
   }).join('');
+  const checklistItems = (entry.checklist || []);
+  const checklistHTML = checklistItems.length
+    ? '<div style="margin-bottom:8px;">' + checklistItems.map(function (key) {
+        const item = HANDOVER_CHECKLIST_ITEMS.find(function (i) { return i.key === key; });
+        return '<div style="font-size:10.5px; color:var(--green);">✓ ' + escapeHtml(item ? item.label : key) + '</div>';
+      }).join('') + '</div>'
+    : '';
+  const certificateHTML = entry.certificateUrl
+    ? '<div class="photo-slot done" style="width:60px; height:60px;" id="handoverCertificate_' + entry.id + '">📎</div>'
+    : '';
   return (
     '<div class="card" style="margin-bottom:10px;">' +
     '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">' +
     '<span class="badge">' + typeLabel + '</span>' +
     '<span style="font-size:10px; color:var(--ink-faint);">' + escapeHtml(date) + '</span>' +
     '</div>' +
+    checklistHTML +
     (entry.notes ? '<div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">' + escapeHtml(entry.notes) + '</div>' : '') +
-    '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + photosHTML + '</div>' +
+    '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + photosHTML + certificateHTML + '</div>' +
     '<div style="font-size:10px; color:var(--ink-faint); margin-top:6px;">وثّقها ' + (isMine ? 'أنت' : 'الطرف التاني') + '</div>' +
     '</div>'
   );
@@ -2304,17 +2411,17 @@ async function loadHandoverTimeline() {
 
 async function resolveHandoverPhotos(entry) {
   if (handoverSignedPhotoCache[entry.id]) {
-    applyHandoverPhotoUrls(entry.id, handoverSignedPhotoCache[entry.id]);
+    applyHandoverPhotoUrls(entry.id, handoverSignedPhotoCache[entry.id].urls, handoverSignedPhotoCache[entry.id].certificateUrl);
     return;
   }
   try {
     const data = await apiRequest('/equipment/handovers/' + entry.id + '/signed-photos');
-    handoverSignedPhotoCache[entry.id] = data.urls || [];
-    applyHandoverPhotoUrls(entry.id, handoverSignedPhotoCache[entry.id]);
+    handoverSignedPhotoCache[entry.id] = { urls: data.urls || [], certificateUrl: data.certificateUrl || null };
+    applyHandoverPhotoUrls(entry.id, data.urls || [], data.certificateUrl || null);
   } catch (err) { /* الصور مش أساسية لعرض باقي تفاصيل التوثيق */ }
 }
 
-function applyHandoverPhotoUrls(entryId, urls) {
+function applyHandoverPhotoUrls(entryId, urls, certificateUrl) {
   urls.forEach(function (url, idx) {
     const el = document.getElementById('handoverPhoto_' + entryId + '_' + idx);
     if (el) {
@@ -2323,6 +2430,15 @@ function applyHandoverPhotoUrls(entryId, urls) {
       el.style.backgroundPosition = 'center';
     }
   });
+  if (certificateUrl) {
+    const certEl = document.getElementById('handoverCertificate_' + entryId);
+    if (certEl) {
+      certEl.style.backgroundImage = 'url(' + certificateUrl + ')';
+      certEl.style.backgroundSize = 'cover';
+      certEl.style.backgroundPosition = 'center';
+      certEl.textContent = '';
+    }
+  }
 }
 
 // ============================================================
