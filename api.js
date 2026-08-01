@@ -2113,6 +2113,8 @@ function openHandoverLog(equipmentId, ownerId, otherPartyId, isOwnerView, return
   renderHandoverChecklist();
   updateHandoverCertificateStatus();
   updateHandoverTypeButtons();
+  const checkinBtnReset = document.getElementById('handoverTypeCheckinBtn');
+  if (checkinBtnReset) checkinBtnReset.style.display = '';
 
   const item = listingDetailCache['equipment:' + equipmentId];
   const titleEl = document.getElementById('handoverEquipTitle');
@@ -2223,8 +2225,24 @@ async function loadHandoverDeal() {
     sectionEl.innerHTML = dealStatusHTML(handoverCurrentDeal);
     updateHandoverDealTypeButtons();
     const isConfirmed = handoverCurrentDeal && handoverCurrentDeal.status === 'confirmed';
-    if (formEl) formEl.style.display = isConfirmed ? '' : 'none';
-    loadHandoverTimeline();
+    const isSale = handoverCurrentDeal && handoverCurrentDeal.dealType === 'sale';
+
+    // صفقات البيع/الشراء مالهاش استلام رجوع — التسليم بيتم مرة واحدة بس، عكس الإيجار
+    const checkinBtn = document.getElementById('handoverTypeCheckinBtn');
+    if (checkinBtn) checkinBtn.style.display = isSale ? 'none' : '';
+    if (isSale) setHandoverType('checkout');
+
+    const items = await loadHandoverTimeline();
+    const alreadyDocumented = isSale && items.length > 0;
+    if (formEl) formEl.style.display = (isConfirmed && !alreadyDocumented) ? '' : 'none';
+    if (isConfirmed && alreadyDocumented) {
+      sectionEl.innerHTML = (
+        '<div class="info-box" style="margin-bottom:14px;">' +
+        '<span>✅</span>' +
+        '<span>تم توثيق تسليم صفقة البيع/الشراء دي بالفعل — مفيش حاجة تانية مطلوبة.</span>' +
+        '</div>'
+      );
+    }
   } catch (err) {
     sectionEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">تعذر تحميل حالة الاتفاق: ' + (err.message || '') + '</div>';
   }
@@ -2521,7 +2539,7 @@ function handoverEntryHTML(entry) {
 
 async function loadHandoverTimeline() {
   const wrapEl = document.getElementById('handoverTimeline');
-  if (!wrapEl) return;
+  if (!wrapEl) return [];
   wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">بتحمّل السجل...</div>';
   try {
     const query = handoverIsOwnerView ? ('?otherPartyId=' + encodeURIComponent(handoverOtherPartyId)) : '';
@@ -2531,8 +2549,10 @@ async function loadHandoverTimeline() {
       ? items.map(handoverEntryHTML).join('')
       : '<div class="subtitle" style="text-align:center; padding:10px 0;">لسه مفيش توثيق لحالة الجهاز</div>';
     items.forEach(resolveHandoverPhotos);
+    return items;
   } catch (err) {
     wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">تعذر تحميل السجل: ' + (err.message || '') + '</div>';
+    return [];
   }
 }
 
