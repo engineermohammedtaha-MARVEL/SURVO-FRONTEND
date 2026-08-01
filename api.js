@@ -489,7 +489,11 @@ function renderListingDetail(type, item) {
     document.getElementById('equipDetailPrice').textContent = price;
     document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
     fillListingDetailContact(item.owner || {});
+    const currentUser = getCurrentUser();
+    const isOwnEquipment = !!(currentUser && item.owner && item.owner.id === currentUser.id);
     toggleListingOwnRow(false);
+    const handoverRow = document.getElementById('equipDetailHandoverRow');
+    if (handoverRow) handoverRow.style.display = isOwnEquipment ? 'none' : '';
   } else if (type === 'job') {
     thumbEl.textContent = '💼';
     badgeEl.textContent = 'وظيفة';
@@ -502,6 +506,8 @@ function renderListingDetail(type, item) {
     document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
     fillListingDetailContact(item.poster || {});
     toggleListingOwnRow(false);
+    const handoverRowJob = document.getElementById('equipDetailHandoverRow');
+    if (handoverRowJob) handoverRowJob.style.display = 'none';
   } else {
     thumbEl.textContent = '📨';
     badgeEl.textContent = 'طلب';
@@ -522,6 +528,8 @@ function renderListingDetail(type, item) {
     const isOwnRequest = !!(currentUser && requester.id && requester.id === currentUser.id);
     fillListingDetailContact(requester);
     toggleListingOwnRow(isOwnRequest);
+    const handoverRowReq = document.getElementById('equipDetailHandoverRow');
+    if (handoverRowReq) handoverRowReq.style.display = 'none';
   }
 }
 
@@ -908,6 +916,7 @@ function myEquipRowHTML(item) {
     '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + ' — ' + viewsText + '</div></div>' +
     moderationBadge +
     statusBadge +
+    '<span class="delete-ico" style="margin-left:2px;" onclick="openHandoverPartnerPickerFor(\'' + item.id + '\')">📷</span>' +
     '<span class="delete-ico" style="margin-left:2px;" onclick="editMyEquipment(\'' + item.id + '\')">✏️</span>' +
     '<span class="delete-ico" onclick="deleteMyEquipment(\'' + item.id + '\')">🗑</span>' +
     '</div>'
@@ -1506,8 +1515,10 @@ function notificationRowHTML(n) {
   const hasContact = n.contactUser && n.contactUser.id;
   if (hasContact) cachePartialProfile(n.contactUser);
   const contactId = hasContact ? n.contactUser.id : '';
-  // بنمرر بس رقم الـ id (UUID آمن) جوه الـ onclick، والاسم بيتجاب من الكاش وقت الفتح
-  const rowClickArgs = "'" + n.id + "', '" + contactId + "'";
+  const targetType = n.targetType || '';
+  const targetId = n.targetId || '';
+  // بنمرر بس أرقام الـ id (UUID آمنة) جوه الـ onclick، والاسم بيتجاب من الكاش وقت الفتح
+  const rowClickArgs = "'" + n.id + "', '" + contactId + "', '" + targetType + "', '" + targetId + "'";
   const contactBtn = hasContact
     ? '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="event.stopPropagation(); openNotificationTarget(' + rowClickArgs + ')">تواصل معاه</button>'
     : '';
@@ -1521,8 +1532,12 @@ function notificationRowHTML(n) {
   );
 }
 
-function openNotificationTarget(notificationId, contactUserId) {
+function openNotificationTarget(notificationId, contactUserId, targetType, targetId) {
   markNotificationRead(notificationId);
+  if (targetType === 'equipment' && targetId) {
+    openListingDetail('equipment', targetId);
+    return;
+  }
   if (contactUserId) {
     openChatWithUser(contactUserId);
   }
@@ -2034,6 +2049,352 @@ async function contactJobPoster(jobId, message) {
     method: 'POST',
     body: JSON.stringify({ message: message || '' }),
   });
+}
+
+// ============================================================
+// DEVICE HANDOVER LOG (توثيق حالة الجهاز بالصور وقت التسليم/الاستلام)
+// ============================================================
+
+var handoverEquipmentId = null;
+var handoverOwnerId = null;
+var handoverOtherPartyId = null;
+var handoverIsOwnerView = false;
+var handoverReturnPage = 'home';
+var handoverSelectedType = 'checkout';
+var handoverPendingPhotos = []; // { previewUrl, uploadedUrl, uploading }
+var handoverSignedPhotoCache = {};
+var HANDOVER_MAX_PHOTOS = 4;
+
+function openHandoverLogFromDetail() {
+  if (currentDetailType !== 'equipment' || !currentDetailId) return;
+  const item = listingDetailCache['equipment:' + currentDetailId];
+  if (!item) return;
+  const currentUser = getCurrentUser();
+  const ownerId = item.owner ? item.owner.id : null;
+  const isOwner = !!(currentUser && ownerId && ownerId === currentUser.id);
+  openHandoverLog(item.id, ownerId, isOwner ? null : (currentUser ? currentUser.id : null), isOwner, 'equipment-detail');
+}
+
+function openHandoverPartnerPickerFor(equipmentId) {
+  const currentUser = getCurrentUser();
+  openHandoverLog(equipmentId, currentUser ? currentUser.id : null, null, true, 'myequip');
+}
+
+function openHandoverLog(equipmentId, ownerId, otherPartyId, isOwnerView, returnPage) {
+  handoverEquipmentId = equipmentId;
+  handoverOwnerId = ownerId;
+  handoverOtherPartyId = otherPartyId;
+  handoverIsOwnerView = isOwnerView;
+  handoverReturnPage = returnPage || handoverReturnPage || 'home';
+  handoverPendingPhotos = [];
+  handoverSelectedType = 'checkout';
+
+  showPage('handover');
+  const notesEl = document.getElementById('handoverNotesInput');
+  if (notesEl) notesEl.value = '';
+  renderHandoverPhotoSlots();
+  updateHandoverTypeButtons();
+
+  const item = listingDetailCache['equipment:' + equipmentId];
+  const titleEl = document.getElementById('handoverEquipTitle');
+  if (titleEl) titleEl.textContent = item ? (item.title || 'جهاز مساحة') : 'جهاز مساحة';
+
+  const partiesEl = document.getElementById('handoverPartiesLine');
+  const pickerEl = document.getElementById('handoverPartnerPicker');
+  const mainEl = document.getElementById('handoverMainWrap');
+
+  if (isOwnerView && !otherPartyId) {
+    if (pickerEl) pickerEl.style.display = '';
+    if (mainEl) mainEl.style.display = 'none';
+    if (partiesEl) partiesEl.textContent = '—';
+    loadHandoverPartnerList();
+  } else {
+    if (pickerEl) pickerEl.style.display = 'none';
+    if (mainEl) mainEl.style.display = '';
+    const cached = otherPartyId ? publicProfileCache[otherPartyId] : null;
+    const otherName = cached ? cached.fullName : 'الطرف التاني';
+    if (partiesEl) partiesEl.textContent = isOwnerView ? ('أنت ← ' + otherName) : (otherName + ' ← أنت');
+    loadHandoverTimeline();
+  }
+}
+
+function closeHandoverLog() {
+  showPage(handoverReturnPage || 'home');
+}
+
+async function loadHandoverPartnerList() {
+  const listEl = document.getElementById('handoverPartnerList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:16px 0;">بتحمّل...</div>';
+  try {
+    const data = await apiRequest('/chat/conversations');
+    const currentUser = getCurrentUser();
+    const conversations = data.conversations || [];
+    const partners = conversations.map(function (c) {
+      const isA = c.userAId === currentUser.id;
+      return isA ? c.userB : c.userA;
+    }).filter(Boolean);
+
+    if (!partners.length) {
+      listEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:16px 0;">لسه معندكش محادثات مع حد — لازم تتواصل مع الطرف التاني الأول من المحادثات</div>';
+      return;
+    }
+
+    listEl.innerHTML = partners.map(function (p) {
+      cachePartialProfile(p);
+      const initials = (p.fullName || 'م ص').trim().slice(0, 2);
+      return (
+        '<div class="list-row" style="cursor:pointer;" data-partner-id="' + p.id + '">' +
+        '<div class="avatar">' + escapeHtml(initials) + '</div>' +
+        '<div style="flex:1;"><div style="font-size:13px; font-weight:700; color:var(--navy);">' + escapeHtml(p.fullName || 'مستخدم') + '</div></div>' +
+        '</div>'
+      );
+    }).join('');
+
+    Array.from(listEl.querySelectorAll('[data-partner-id]')).forEach(function (row) {
+      row.onclick = function () { selectHandoverPartner(row.getAttribute('data-partner-id')); };
+    });
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:16px 0;">تعذر التحميل: ' + (err.message || '') + '</div>';
+  }
+}
+
+function selectHandoverPartner(partnerId) {
+  openHandoverLog(handoverEquipmentId, handoverOwnerId, partnerId, true, handoverReturnPage);
+}
+
+function setHandoverType(type) {
+  handoverSelectedType = type;
+  updateHandoverTypeButtons();
+}
+
+function updateHandoverTypeButtons() {
+  const checkoutBtn = document.getElementById('handoverTypeCheckoutBtn');
+  const checkinBtn = document.getElementById('handoverTypeCheckinBtn');
+  if (checkoutBtn) checkoutBtn.className = handoverSelectedType === 'checkout' ? 'btn btn-primary' : 'btn';
+  if (checkinBtn) checkinBtn.className = handoverSelectedType === 'checkin' ? 'btn btn-primary' : 'btn';
+}
+
+function renderHandoverPhotoSlots() {
+  const wrap = document.getElementById('handoverPhotoSlots');
+  if (!wrap) return;
+  const slots = [];
+  handoverPendingPhotos.forEach(function (p, idx) {
+    if (p.uploading) {
+      slots.push('<div class="photo-slot" style="background-image:url(' + p.previewUrl + '); background-size:cover; background-position:center;">⏳</div>');
+    } else {
+      slots.push(
+        '<div class="photo-slot done" style="background-image:url(' + p.previewUrl + '); background-size:cover; background-position:center; position:relative;">' +
+        '<span style="position:absolute; top:2px; left:4px; cursor:pointer; background:#fff; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:10px;" onclick="removeHandoverPendingPhoto(' + idx + ')">✕</span>' +
+        '</div>'
+      );
+    }
+  });
+  if (handoverPendingPhotos.length < HANDOVER_MAX_PHOTOS) {
+    slots.push('<label class="photo-slot" style="cursor:pointer;">📷 إضافة صورة<input type="file" accept="image/*" style="display:none;" onchange="handleHandoverPhotoSelect(this)"></label>');
+  }
+  wrap.innerHTML = slots.join('');
+}
+
+function removeHandoverPendingPhoto(idx) {
+  handoverPendingPhotos.splice(idx, 1);
+  renderHandoverPhotoSlots();
+}
+
+async function handleHandoverPhotoSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const previewUrl = URL.createObjectURL(file);
+  const entry = { previewUrl: previewUrl, uploadedUrl: null, uploading: true };
+  handoverPendingPhotos.push(entry);
+  renderHandoverPhotoSlots();
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', 'handover');
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الصورة');
+    entry.uploadedUrl = data.url;
+    entry.uploading = false;
+  } catch (err) {
+    const idx = handoverPendingPhotos.indexOf(entry);
+    if (idx !== -1) handoverPendingPhotos.splice(idx, 1);
+    showToast(err.message || 'تعذر رفع الصورة');
+  }
+  renderHandoverPhotoSlots();
+}
+
+async function submitHandoverEntry() {
+  if (!handoverEquipmentId || !handoverOtherPartyId) return;
+  const uploadedPhotos = handoverPendingPhotos
+    .filter(function (p) { return p.uploadedUrl && !p.uploading; })
+    .map(function (p) { return p.uploadedUrl; });
+  if (!uploadedPhotos.length) {
+    showToast('ضيف صورة واحدة على الأقل لتوثيق حالة الجهاز');
+    return;
+  }
+  const notesEl = document.getElementById('handoverNotesInput');
+  const notes = notesEl ? notesEl.value.trim() : '';
+
+  const submitBtn = document.getElementById('handoverSubmitBtn');
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    const body = { type: handoverSelectedType, photos: uploadedPhotos, notes: notes || undefined };
+    if (handoverIsOwnerView) body.otherPartyId = handoverOtherPartyId;
+    await apiRequest('/equipment/' + handoverEquipmentId + '/handovers', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    showToast('تم حفظ التوثيق ✓');
+    handoverPendingPhotos = [];
+    if (notesEl) notesEl.value = '';
+    renderHandoverPhotoSlots();
+    loadHandoverTimeline();
+  } catch (err) {
+    showToast(err.message || 'تعذر حفظ التوثيق');
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function handoverEntryHTML(entry) {
+  const currentUser = getCurrentUser();
+  const isMine = currentUser && entry.createdById === currentUser.id;
+  const typeLabel = entry.type === 'checkout' ? '📤 تسليم' : '📥 استلام';
+  const date = new Date(entry.createdAt).toLocaleString('ar-EG');
+  const photosHTML = entry.photos.map(function (_, idx) {
+    return '<div class="photo-slot done" style="width:60px; height:60px;" id="handoverPhoto_' + entry.id + '_' + idx + '"></div>';
+  }).join('');
+  return (
+    '<div class="card" style="margin-bottom:10px;">' +
+    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">' +
+    '<span class="badge">' + typeLabel + '</span>' +
+    '<span style="font-size:10px; color:var(--ink-faint);">' + escapeHtml(date) + '</span>' +
+    '</div>' +
+    (entry.notes ? '<div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">' + escapeHtml(entry.notes) + '</div>' : '') +
+    '<div style="display:flex; gap:6px; flex-wrap:wrap;">' + photosHTML + '</div>' +
+    '<div style="font-size:10px; color:var(--ink-faint); margin-top:6px;">وثّقها ' + (isMine ? 'أنت' : 'الطرف التاني') + '</div>' +
+    '</div>'
+  );
+}
+
+async function loadHandoverTimeline() {
+  const wrapEl = document.getElementById('handoverTimeline');
+  if (!wrapEl) return;
+  wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">بتحمّل السجل...</div>';
+  try {
+    const query = handoverIsOwnerView ? ('?otherPartyId=' + encodeURIComponent(handoverOtherPartyId)) : '';
+    const data = await apiRequest('/equipment/' + handoverEquipmentId + '/handovers' + query);
+    const items = data.items || [];
+    wrapEl.innerHTML = items.length
+      ? items.map(handoverEntryHTML).join('')
+      : '<div class="subtitle" style="text-align:center; padding:10px 0;">لسه مفيش توثيق لحالة الجهاز</div>';
+    items.forEach(resolveHandoverPhotos);
+  } catch (err) {
+    wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">تعذر تحميل السجل: ' + (err.message || '') + '</div>';
+  }
+}
+
+async function resolveHandoverPhotos(entry) {
+  if (handoverSignedPhotoCache[entry.id]) {
+    applyHandoverPhotoUrls(entry.id, handoverSignedPhotoCache[entry.id]);
+    return;
+  }
+  try {
+    const data = await apiRequest('/equipment/handovers/' + entry.id + '/signed-photos');
+    handoverSignedPhotoCache[entry.id] = data.urls || [];
+    applyHandoverPhotoUrls(entry.id, handoverSignedPhotoCache[entry.id]);
+  } catch (err) { /* الصور مش أساسية لعرض باقي تفاصيل التوثيق */ }
+}
+
+function applyHandoverPhotoUrls(entryId, urls) {
+  urls.forEach(function (url, idx) {
+    const el = document.getElementById('handoverPhoto_' + entryId + '_' + idx);
+    if (el) {
+      el.style.backgroundImage = 'url(' + url + ')';
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+    }
+  });
+}
+
+// ============================================================
+// SAVED SEARCHES (تنبيه بحث محفوظ)
+// ============================================================
+
+async function saveCurrentSearch() {
+  const category = (typeof currentCategoryFilter !== 'undefined' && currentCategoryFilter !== 'all' && currentCategoryFilter !== 'jobs')
+    ? currentCategoryFilter
+    : undefined;
+  const governorate = (typeof currentLocationFilter !== 'undefined' && currentLocationFilter !== 'all')
+    ? currentLocationFilter
+    : undefined;
+  const keywordInput = document.getElementById('homeSearchInput');
+  const keyword = keywordInput ? keywordInput.value.trim() : '';
+
+  if (!category && !governorate && !keyword) {
+    showToast('حدد فئة أو محافظة أو اكتب كلمة بحث الأول عشان تقدر تحفظه');
+    return;
+  }
+
+  try {
+    await apiRequest('/saved-searches', {
+      method: 'POST',
+      body: JSON.stringify({ category: category, governorate: governorate, keyword: keyword || undefined }),
+    });
+    showToast('تم حفظ البحث ✓ هيوصلك إشعار لما يتنشر إعلان يطابقه');
+  } catch (err) {
+    showToast(err.message || 'تعذر حفظ البحث');
+  }
+}
+
+function savedSearchLabel(item) {
+  const parts = [];
+  if (item.category) parts.push(CATEGORY_LABELS[item.category] || item.category);
+  if (item.governorate) parts.push('📍 ' + item.governorate);
+  if (item.keyword) parts.push('"' + item.keyword + '"');
+  return parts.length ? parts.join(' — ') : 'كل الإعلانات الجديدة';
+}
+
+function savedSearchRowHTML(item) {
+  return (
+    '<div class="list-row">' +
+    '<span style="font-size:18px;">🔍</span>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(savedSearchLabel(item)) + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + new Date(item.createdAt).toLocaleDateString('ar-EG') + '</div></div>' +
+    '<span class="delete-ico" onclick="deleteSavedSearch(\'' + item.id + '\')">🗑</span>' +
+    '</div>'
+  );
+}
+
+async function loadSavedSearches() {
+  const listEl = document.getElementById('savedSearchesList');
+  if (!listEl) return;
+  try {
+    const data = await apiRequest('/saved-searches');
+    const items = data.items || [];
+    listEl.innerHTML = items.length
+      ? items.map(savedSearchRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">مفيش بحثات محفوظة، ارجع للرئيسية واحفظ فلترة تهمك</div>';
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر التحميل: ' + (err.message || '') + '</div>';
+  }
+}
+
+async function deleteSavedSearch(id) {
+  try {
+    await apiRequest('/saved-searches/' + id, { method: 'DELETE' });
+    loadSavedSearches();
+  } catch (err) {
+    showToast(err.message || 'تعذر حذف البحث');
+  }
 }
 
 // ============================================================

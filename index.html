@@ -51,7 +51,7 @@
         <div class="subtitle">دوّر على جهاز، أو اعرض معداتك للسوق</div>
 
         <div class="search-row">
-          <input type="text" placeholder="ابحث... توتال ستاشن، GPS، ليزر سكانر">
+          <input type="text" id="homeSearchInput" placeholder="ابحث... توتال ستاشن، GPS، ليزر سكانر">
           <span class="search-ico">⌕</span>
         </div>
 
@@ -95,8 +95,11 @@
           <option value="شمال سيناء">شمال سيناء</option>
           <option value="سوهاج">سوهاج</option>
         </select>
-        <div class="section-label" id="homeSectionLabel">قريب منك — كل المحافظات</div>
-        <div class="grid2" id="homeListingsGrid">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div class="section-label" id="homeSectionLabel" style="margin-bottom:0;">قريب منك — كل المحافظات</div>
+          <span style="font-size:11px; font-weight:700; color:var(--navy-3); cursor:pointer; white-space:nowrap;" onclick="saveCurrentSearch()">💾 احفظ البحث</span>
+        </div>
+        <div class="grid2" id="homeListingsGrid" style="margin-top:10px;">
           <div class="subtitle" style="text-align:center; grid-column: 1 / -1; padding:20px 0;">بتحمّل الأجهزة القريبة منك...</div>
         </div>
 
@@ -134,6 +137,9 @@
         <div class="btn-row" style="margin-top:14px;" id="equipDetailContactRow">
           <button class="btn" id="equipDetailMsgBtn">✉ مراسلة</button>
           <button class="btn btn-primary" style="flex:1.4;" id="equipDetailCallBtn">📞 الاتصال</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px; display:none;" id="equipDetailHandoverRow">
+          <button class="btn" style="flex:1;" onclick="openHandoverLogFromDetail()">📷 توثيق حالة الجهاز</button>
         </div>
         <div class="btn-row" style="margin-top:14px; display:none;" id="equipDetailOwnRow">
           <button class="btn" style="flex:1;" onclick="editMyRequest()">✏️ تعديل</button>
@@ -587,55 +593,45 @@
         <div style="font-size:10.5px; color:var(--ink-faint); text-align:center; margin-top:8px;">بالمتابعة إنت موافق على شروط الضمان</div>
       </div>
 
-      <!-- ============ HANDOVER ============ -->
+      <!-- ============ HANDOVER (توثيق حالة الجهاز) ============ -->
       <div class="page" id="page-handover">
         <div class="topbar">
-          <div class="icon-btn" onclick="showPage('home'); loadHomeEquipment();">→</div>
-          <div class="page-title">تأكيد التسليم</div>
+          <div class="icon-btn" onclick="closeHandoverLog();">→</div>
+          <div class="page-title">توثيق حالة الجهاز</div>
           <span style="width:34px;"></span>
         </div>
 
         <div class="list-row">
           <span>▦</span>
           <div>
-            <div style="font-size:13px; font-weight:700; color:var(--navy);">توتال ستاشن لايكا TS 15</div>
-            <div style="font-size:11px; color:var(--ink-soft);">مكتب الدقة للمساحة ← م. محمد طه</div>
+            <div style="font-size:13px; font-weight:700; color:var(--navy);" id="handoverEquipTitle">—</div>
+            <div style="font-size:11px; color:var(--ink-soft);" id="handoverPartiesLine">—</div>
           </div>
         </div>
 
-        <div class="section-label">توثيق حالة الجهاز</div>
-        <div class="subtitle" style="margin-top:-8px;">صوّر الجهاز من زوايا مختلفة قبل التسليم — ده دليلك لو حصل خلاف.</div>
-        <div class="grid2" style="margin-bottom:16px;">
-          <div class="photo-slot">📷 من الأمام</div>
-          <div class="photo-slot done">✓ تم التصوير</div>
-          <div class="photo-slot">📷 الملحقات</div>
-          <div class="photo-slot">📷 الشنطة/الكرتونة</div>
+        <div id="handoverPartnerPicker" style="display:none;">
+          <div class="section-label">اختار الطرف التاني</div>
+          <div class="subtitle" style="margin-top:-8px;">حدد الشخص اللي هتوثّق تسليم/استلام الجهاز معاه</div>
+          <div id="handoverPartnerList"></div>
         </div>
 
-        <div class="section-label">قائمة فحص سريعة</div>
-        <label class="check-row"><input type="checkbox" checked>الجهاز شغّال ومفيش كسور ظاهرة</label>
-        <label class="check-row"><input type="checkbox" checked>الشاحن والبطاريات موجودة</label>
-        <label class="check-row"><input type="checkbox">الحامل الثلاثي (Tripod) موجود</label>
-        <label class="check-row"><input type="checkbox">تم توقيع محضر الاستلام/التسليم من الطرفين</label>
+        <div id="handoverMainWrap">
+          <div id="handoverTimeline"></div>
 
-        <div class="upload-row" style="margin-top:9px;">
-          <span>📎</span>
-          <div style="flex:1;">
-            <div style="font-size:12.5px; font-weight:700;">إرفاق صورة محضر الاستلام والتسليم</div>
-            <div style="font-size:10.5px; color:var(--ink-faint);">موقّع من الطرفين (المكتب والمستلم)</div>
+          <div class="section-label">توثيق جديد</div>
+          <div class="btn-row" style="margin-bottom:12px;">
+            <button class="btn" id="handoverTypeCheckoutBtn" onclick="setHandoverType('checkout')">📤 تسليم</button>
+            <button class="btn" id="handoverTypeCheckinBtn" onclick="setHandoverType('checkin')">📥 استلام</button>
           </div>
-          <i>⬆</i>
+
+          <div class="subtitle" style="margin-top:-4px;">صوّر الجهاز من زوايا مختلفة — ده دليلك لو حصل خلاف.</div>
+          <div class="grid2" style="margin-bottom:12px;" id="handoverPhotoSlots"></div>
+
+          <span class="field-label">ملاحظات (اختياري)</span>
+          <textarea class="field-gap" id="handoverNotesInput" placeholder="مثال: يوجد خدش بسيط في الجانب الأيمن"></textarea>
+
+          <button class="btn btn-primary btn-block" id="handoverSubmitBtn" onclick="submitHandoverEntry()">حفظ التوثيق</button>
         </div>
-
-        <span class="field-label" style="margin-top:14px; display:block;">ملاحظات (اختياري)</span>
-        <textarea class="field-gap" placeholder="مثال: يوجد خدش بسيط في الجانب الأيمن"></textarea>
-
-        <div class="info-box">
-          <span>🛡</span>
-          <span>بعد تأكيد استلامك للجهاز بحالة سليمة، هتنتقل مباشرة لخطوة الدفع لإتمام العملية.</span>
-        </div>
-
-        <button class="btn btn-primary btn-block" onclick="showToast('تم تأكيد الاستلام ✓'); setTimeout(()=>showPage('payment'),900)">تأكيد الاستلام بحالة سليمة</button>
       </div>
 
       <!-- ============ REGISTER ============ -->
@@ -842,6 +838,15 @@
           <span style="color:var(--ink-faint);">←</span>
         </div>
 
+        <div class="list-row" onclick="showPage('saved-searches'); loadSavedSearches();" style="cursor:pointer; margin-top:9px;">
+          <span style="font-size:18px;">💾</span>
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">بحثاتي المحفوظة</div>
+            <div style="font-size:11px; color:var(--ink-soft);">هتوصلك إشعارات لما يتنشر إعلان يطابقها</div>
+          </div>
+          <span style="color:var(--ink-faint);">←</span>
+        </div>
+
         <div class="list-row" onclick="showPage('support')" style="cursor:pointer; margin-top:9px;">
           <span style="font-size:18px;">🎧</span>
           <div style="flex:1;">
@@ -856,6 +861,18 @@
           <div style="flex:1;">
             <div style="font-size:13px; font-weight:700; color:var(--rust);">تسجيل الخروج</div>
           </div>
+        </div>
+      </div>
+
+      <!-- ============ SAVED SEARCHES ============ -->
+      <div class="page" id="page-saved-searches">
+        <div class="topbar">
+          <div class="icon-btn" onclick="showPage('profile')">→</div>
+          <div class="page-title">بحثاتي المحفوظة</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div id="savedSearchesList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>
         </div>
       </div>
 
@@ -1413,8 +1430,8 @@
   </div>
 </div>
 
-<script src="api.js?v=41"></script>
-<script src="script.js?v=41"></script>
+<script src="api.js?v=42"></script>
+<script src="script.js?v=42"></script>
 
 </body>
 </html>
