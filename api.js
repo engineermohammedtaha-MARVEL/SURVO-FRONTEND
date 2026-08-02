@@ -680,19 +680,17 @@ function myRequestRowHTML(item) {
 
 async function loadMyRequests() {
   const listEl = document.getElementById('myRequestsList');
-  if (listEl) {
-    try {
-      const data = await apiRequest('/requests/mine');
-      const items = (data && data.items) || [];
-      items.forEach(function (item) { cacheListingDetail('request', item); });
-      listEl.innerHTML = items.length
-        ? items.map(myRequestRowHTML).join('')
-        : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي طلبات، دوس "اطلب جهاز مساحة" عشان تضيف أول طلب</div>';
-    } catch (err) {
-      listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل طلباتك: ' + (err.message || '') + '</div>';
-    }
+  if (!listEl) return;
+  try {
+    const data = await apiRequest('/requests/mine');
+    const items = (data && data.items) || [];
+    items.forEach(function (item) { cacheListingDetail('request', item); });
+    listEl.innerHTML = items.length
+      ? items.map(myRequestRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي طلبات، دوس "اطلب جهاز مساحة" عشان تضيف أول طلب</div>';
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل طلباتك: ' + (err.message || '') + '</div>';
   }
-  loadMyJobApplications();
 }
 
 function myJobApplicationRowHTML(item) {
@@ -750,16 +748,18 @@ function myJobPostingRowHTML(item) {
 
 async function loadMyJobPostings() {
   const listEl = document.getElementById('myJobPostingsList');
-  if (!listEl) return;
-  try {
-    const data = await apiRequest('/jobs/mine');
-    const items = (data && data.items) || [];
-    listEl.innerHTML = items.length
-      ? items.map(myJobPostingRowHTML).join('')
-      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي إعلان وظيفة</div>';
-  } catch (err) {
-    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل وظايفك: ' + (err.message || '') + '</div>';
+  if (listEl) {
+    try {
+      const data = await apiRequest('/jobs/mine');
+      const items = (data && data.items) || [];
+      listEl.innerHTML = items.length
+        ? items.map(myJobPostingRowHTML).join('')
+        : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي إعلان وظيفة</div>';
+    } catch (err) {
+      listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل وظايفك: ' + (err.message || '') + '</div>';
+    }
   }
+  loadMyJobApplications();
 }
 
 async function deleteMyJobPosting(id) {

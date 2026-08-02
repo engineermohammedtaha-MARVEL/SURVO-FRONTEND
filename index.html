@@ -475,8 +475,8 @@
         <div class="list-row" onclick="showPage('myrequests'); loadMyRequests()" style="cursor:pointer; margin-top:9px;">
           <span style="font-size:18px;">📨</span>
           <div style="flex:1;">
-            <div style="font-size:13px; font-weight:700; color:var(--navy);">طلباتي</div>
-            <div style="font-size:11px; color:var(--ink-soft);">شوف طلباتك اللي نزلتها، وعدّل أو احذف أي واحد منها</div>
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">طلبات الأجهزة المنشورة</div>
+            <div style="font-size:11px; color:var(--ink-soft);">شوف طلبات الأجهزة اللي نزلتها، وعدّل أو احذف أي واحد منها</div>
           </div>
           <span style="color:var(--ink-faint);">←</span>
         </div>
@@ -484,22 +484,28 @@
         <div class="list-row" onclick="showPage('myjobs'); loadMyJobPostings()" style="cursor:pointer; margin-top:9px;">
           <span style="font-size:18px;">💼</span>
           <div style="flex:1;">
-            <div style="font-size:13px; font-weight:700; color:var(--navy);">وظايفي المنشورة</div>
-            <div style="font-size:11px; color:var(--ink-soft);">شوف إعلانات الوظايف اللي نشرتها ومين اتقدملها</div>
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">طلبات التوظيف</div>
+            <div style="font-size:11px; color:var(--ink-soft);">شوف الوظايف اللي نشرتها والوظايف اللي اتقدمت لها</div>
           </div>
           <span style="color:var(--ink-faint);">←</span>
         </div>
       </div>
 
-      <!-- ============ MY JOB POSTINGS ============ -->
+      <!-- ============ MY JOB POSTINGS + APPLICATIONS ============ -->
       <div class="page" id="page-myjobs">
         <div class="topbar">
           <div class="icon-btn" onclick="showPage('requesthub')">→</div>
-          <div class="page-title">وظايفي المنشورة</div>
+          <div class="page-title">طلبات التوظيف</div>
           <span style="width:34px;"></span>
         </div>
+        <div class="section-label">الوظايف اللي نشرتها</div>
         <div id="myJobPostingsList">
           <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل وظايفك...</div>
+        </div>
+
+        <div class="section-label" style="margin-top:18px;">الوظايف اللي اتقدمت لها</div>
+        <div id="myJobApplicationsList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل تقديماتك...</div>
         </div>
       </div>
 
@@ -519,17 +525,11 @@
       <div class="page" id="page-myrequests">
         <div class="topbar">
           <div class="icon-btn" onclick="showPage('requesthub')">→</div>
-          <div class="page-title">طلباتي</div>
+          <div class="page-title">طلبات الأجهزة المنشورة</div>
           <span style="width:34px;"></span>
         </div>
-        <div class="section-label">طلبات الأجهزة اللي نزلتها</div>
         <div id="myRequestsList">
           <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل طلباتك...</div>
-        </div>
-
-        <div class="section-label" style="margin-top:18px;">الوظايف اللي اتقدمت لها</div>
-        <div id="myJobApplicationsList">
-          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل تقديماتك...</div>
         </div>
       </div>
 
@@ -1487,8 +1487,8 @@
   </div>
 </div>
 
-<script src="api.js?v=50"></script>
-<script src="script.js?v=50"></script>
+<script src="api.js?v=51"></script>
+<script src="script.js?v=51"></script>
 
 </body>
 </html>
