@@ -680,16 +680,47 @@ function myRequestRowHTML(item) {
 
 async function loadMyRequests() {
   const listEl = document.getElementById('myRequestsList');
+  if (listEl) {
+    try {
+      const data = await apiRequest('/requests/mine');
+      const items = (data && data.items) || [];
+      items.forEach(function (item) { cacheListingDetail('request', item); });
+      listEl.innerHTML = items.length
+        ? items.map(myRequestRowHTML).join('')
+        : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي طلبات، دوس "اطلب جهاز مساحة" عشان تضيف أول طلب</div>';
+    } catch (err) {
+      listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل طلباتك: ' + (err.message || '') + '</div>';
+    }
+  }
+  loadMyJobApplications();
+}
+
+function myJobApplicationRowHTML(item) {
+  const job = item.job || {};
+  const poster = job.poster || {};
+  const typeLabel = WORK_TYPE_LABELS[job.workType] || JOB_TYPE_LABELS[job.jobType] || '';
+  return (
+    '<div class="list-row" style="cursor:pointer;" onclick="openListingDetail(\'job\', \'' + job.id + '\')">' +
+    '<span style="font-size:18px;">💼</span>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(job.title || 'وظيفة') + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(poster.fullName || 'مستخدم') + (typeLabel ? ' — ' + escapeHtml(typeLabel) : '') + '</div></div>' +
+    '<span style="color:var(--ink-faint);">←</span>' +
+    '</div>'
+  );
+}
+
+async function loadMyJobApplications() {
+  const listEl = document.getElementById('myJobApplicationsList');
   if (!listEl) return;
   try {
-    const data = await apiRequest('/requests/mine');
+    const data = await apiRequest('/jobs/applications/mine');
     const items = (data && data.items) || [];
-    items.forEach(function (item) { cacheListingDetail('request', item); });
+    items.forEach(function (item) { if (item.job) cacheListingDetail('job', item.job); });
     listEl.innerHTML = items.length
-      ? items.map(myRequestRowHTML).join('')
-      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي طلبات، دوس "اطلب جهاز مساحة" عشان تضيف أول طلب</div>';
+      ? items.map(myJobApplicationRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش تقديم على أي وظيفة</div>';
   } catch (err) {
-    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل طلباتك: ' + (err.message || '') + '</div>';
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل تقديماتك: ' + (err.message || '') + '</div>';
   }
 }
 
