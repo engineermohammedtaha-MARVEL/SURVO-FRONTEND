@@ -497,7 +497,7 @@ function renderListingDetail(type, item) {
     const applyJobRowEquip = document.getElementById('equipDetailApplyJobRow');
     if (applyJobRowEquip) applyJobRowEquip.style.display = 'none';
   } else if (type === 'job') {
-    thumbEl.textContent = '💼';
+    thumbEl.style.backgroundImage = 'url(job-banner.jpg)';
     badgeEl.textContent = 'وظيفة';
     badgeEl.className = 'badge';
     document.getElementById('equipDetailTitle').textContent = item.title;
@@ -933,7 +933,7 @@ function jobCardHTML(item) {
 
   return (
     '<div class="item-card card" data-cat="jobs" onclick="' + clickHandler + '">' +
-    '<div class="item-thumb" style="background:var(--cream-2); display:flex; align-items:center; justify-content:center; font-size:26px;">💼</div>' +
+    '<div class="item-thumb" style="background-image:url(job-banner.jpg); background-size:cover; background-position:center;"></div>' +
     '<span class="badge" style="background:#E9F7EF; color:var(--green);">وظيفة</span>' +
     '<div class="item-name">' + escapeHtml(item.title) + '</div>' +
     '<div class="item-loc">📍 ' + escapeHtml(item.governorate || '—') + '</div>' +
