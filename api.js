@@ -724,6 +724,98 @@ async function loadMyJobApplications() {
   }
 }
 
+// ============================================================
+// MY JOB POSTINGS (page-myjobs) + JOB APPLICANTS (page-job-applicants)
+// ============================================================
+
+var myJobPostingsCache = {};
+
+function myJobPostingRowHTML(item) {
+  myJobPostingsCache[item.id] = item;
+  const typeLabel = WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '';
+  const statusBadge = item.status === 'open'
+    ? '<span class="badge badge-verified">شاغرة</span>'
+    : '<span class="badge" style="background:#FCEFDD; color:var(--amber-dark);">مقفولة</span>';
+  const count = Number(item.applicantsCount) || 0;
+  return (
+    '<div class="list-row" data-job-id="' + item.id + '" style="cursor:pointer;" onclick="openJobApplicants(\'' + item.id + '\')">' +
+    '<span style="font-size:18px;">💼</span>' +
+    '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(item.title || 'وظيفة') + '</div>' +
+    '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(typeLabel) + ' — 👤 ' + count.toLocaleString('ar-EG') + ' متقدم</div></div>' +
+    statusBadge +
+    '<span class="delete-ico" onclick="event.stopPropagation(); deleteMyJobPosting(\'' + item.id + '\')">🗑</span>' +
+    '</div>'
+  );
+}
+
+async function loadMyJobPostings() {
+  const listEl = document.getElementById('myJobPostingsList');
+  if (!listEl) return;
+  try {
+    const data = await apiRequest('/jobs/mine');
+    const items = (data && data.items) || [];
+    listEl.innerHTML = items.length
+      ? items.map(myJobPostingRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه معملتش أي إعلان وظيفة</div>';
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل وظايفك: ' + (err.message || '') + '</div>';
+  }
+}
+
+async function deleteMyJobPosting(id) {
+  if (!confirm('متأكد إنك عايز تحذف إعلان الوظيفة ده؟')) return;
+  try {
+    await apiRequest('/jobs/' + id, { method: 'DELETE' });
+    showToast('تم حذف الإعلان ✓');
+    loadMyJobPostings();
+  } catch (err) {
+    showToast(err.message || 'تعذر حذف الإعلان');
+  }
+}
+
+var currentJobApplicantsJobId = null;
+
+function jobApplicantRowHTML(item) {
+  const applicant = item.applicant || {};
+  cachePartialProfile(applicant);
+  const initials = (applicant.fullName || 'م ص').trim().slice(0, 2);
+  const verifiedBadge = applicant.verification === 'verified' ? '<span class="badge badge-verified" style="margin-inline-start:6px;">موثّق</span>' : '';
+  return (
+    '<div class="list-row">' +
+    '<div class="avatar">' + escapeHtml(initials) + '</div>' +
+    '<div style="flex:1; cursor:pointer;" onclick="openRealPublicProfile(\'' + applicant.id + '\')">' +
+    '<div style="font-size:13px; font-weight:700; color:var(--navy);">' + escapeHtml(applicant.fullName || 'مستخدم') + verifiedBadge + '</div>' +
+    (item.message ? '<div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">' + escapeHtml(item.message) + '</div>' : '') +
+    '</div>' +
+    '<button class="btn btn-primary" style="flex-shrink:0; font-size:11px; padding:6px 12px;" onclick="openChatWithUser(\'' + applicant.id + '\')">✉ تواصل</button>' +
+    '</div>'
+  );
+}
+
+function openJobApplicants(jobId) {
+  currentJobApplicantsJobId = jobId;
+  const cached = myJobPostingsCache[jobId];
+  const titleEl = document.getElementById('jobApplicantsTitle');
+  if (titleEl) titleEl.textContent = (cached && cached.title) ? ('المتقدمين — ' + cached.title) : 'المتقدمين للوظيفة';
+  showPage('job-applicants');
+  loadJobApplicants();
+}
+
+async function loadJobApplicants() {
+  const listEl = document.getElementById('jobApplicantsList');
+  if (!listEl || !currentJobApplicantsJobId) return;
+  listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل المتقدمين...</div>';
+  try {
+    const data = await apiRequest('/jobs/' + currentJobApplicantsJobId + '/applicants');
+    const items = (data && data.items) || [];
+    listEl.innerHTML = items.length
+      ? items.map(jobApplicantRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">لسه محدش اتقدملها</div>';
+  } catch (err) {
+    listEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل المتقدمين: ' + (err.message || '') + '</div>';
+  }
+}
+
 var detailReturnPage = 'home';
 
 function refreshReturnPage(page) {

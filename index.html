@@ -480,6 +480,39 @@
           </div>
           <span style="color:var(--ink-faint);">←</span>
         </div>
+
+        <div class="list-row" onclick="showPage('myjobs'); loadMyJobPostings()" style="cursor:pointer; margin-top:9px;">
+          <span style="font-size:18px;">💼</span>
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">وظايفي المنشورة</div>
+            <div style="font-size:11px; color:var(--ink-soft);">شوف إعلانات الوظايف اللي نشرتها ومين اتقدملها</div>
+          </div>
+          <span style="color:var(--ink-faint);">←</span>
+        </div>
+      </div>
+
+      <!-- ============ MY JOB POSTINGS ============ -->
+      <div class="page" id="page-myjobs">
+        <div class="topbar">
+          <div class="icon-btn" onclick="showPage('requesthub')">→</div>
+          <div class="page-title">وظايفي المنشورة</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div id="myJobPostingsList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل وظايفك...</div>
+        </div>
+      </div>
+
+      <!-- ============ JOB APPLICANTS ============ -->
+      <div class="page" id="page-job-applicants">
+        <div class="topbar">
+          <div class="icon-btn" onclick="showPage('myjobs'); loadMyJobPostings();">→</div>
+          <div class="page-title" id="jobApplicantsTitle">المتقدمين للوظيفة</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div id="jobApplicantsList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل المتقدمين...</div>
+        </div>
       </div>
 
       <!-- ============ MY REQUESTS ============ -->
@@ -1454,8 +1487,8 @@
   </div>
 </div>
 
-<script src="api.js?v=49"></script>
-<script src="script.js?v=49"></script>
+<script src="api.js?v=50"></script>
+<script src="script.js?v=50"></script>
 
 </body>
 </html>
