@@ -494,6 +494,8 @@ function renderListingDetail(type, item) {
     toggleListingOwnRow(false);
     const handoverRow = document.getElementById('equipDetailHandoverRow');
     if (handoverRow) handoverRow.style.display = isOwnEquipment ? 'none' : '';
+    const applyJobRowEquip = document.getElementById('equipDetailApplyJobRow');
+    if (applyJobRowEquip) applyJobRowEquip.style.display = 'none';
   } else if (type === 'job') {
     thumbEl.textContent = '💼';
     badgeEl.textContent = 'وظيفة';
@@ -505,9 +507,13 @@ function renderListingDetail(type, item) {
       : (WORK_TYPE_LABELS[item.workType] || JOB_TYPE_LABELS[item.jobType] || '—');
     document.getElementById('equipDetailDesc').textContent = item.description || 'لا يوجد وصف';
     fillListingDetailContact(item.poster || {});
-    toggleListingOwnRow(false);
+    const currentUserJob = getCurrentUser();
+    const isOwnJob = !!(currentUserJob && item.poster && item.poster.id === currentUserJob.id);
+    toggleListingOwnRow(isOwnJob);
     const handoverRowJob = document.getElementById('equipDetailHandoverRow');
     if (handoverRowJob) handoverRowJob.style.display = 'none';
+    const applyJobRow = document.getElementById('equipDetailApplyJobRow');
+    if (applyJobRow) applyJobRow.style.display = isOwnJob ? 'none' : '';
   } else {
     thumbEl.textContent = '📨';
     badgeEl.textContent = 'طلب';
@@ -530,6 +536,8 @@ function renderListingDetail(type, item) {
     toggleListingOwnRow(isOwnRequest);
     const handoverRowReq = document.getElementById('equipDetailHandoverRow');
     if (handoverRowReq) handoverRowReq.style.display = 'none';
+    const applyJobRowReq = document.getElementById('equipDetailApplyJobRow');
+    if (applyJobRowReq) applyJobRowReq.style.display = 'none';
   }
 }
 
@@ -1661,6 +1669,10 @@ function openNotificationTarget(notificationId, contactUserId, targetType, targe
     openListingDetail('equipment', targetId);
     return;
   }
+  if (targetType === 'job-applicants' && targetId) {
+    openJobApplicants(targetId);
+    return;
+  }
   if (contactUserId) {
     openChatWithUser(contactUserId);
   }
@@ -2172,6 +2184,23 @@ async function contactJobPoster(jobId, message) {
     method: 'POST',
     body: JSON.stringify({ message: message || '' }),
   });
+}
+
+async function applyToCurrentJob() {
+  if (currentDetailType !== 'job' || !currentDetailId) return;
+  const item = listingDetailCache['job:' + currentDetailId];
+  const poster = item && item.poster;
+  const btn = document.querySelector('#equipDetailApplyJobRow button');
+  if (btn) btn.disabled = true;
+  try {
+    await contactJobPoster(currentDetailId, '');
+    showToast('تم التقديم ✓ صاحب الإعلان هيقدر يشوفك ويتواصل معاك');
+    if (poster && poster.id) openChatWithUser(poster.id);
+  } catch (err) {
+    showToast(err.message || 'تعذر التقديم للوظيفة');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ============================================================
