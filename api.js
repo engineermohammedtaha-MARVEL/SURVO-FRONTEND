@@ -210,6 +210,40 @@ async function handleRegisterAvatarSelect(input) {
   }
 }
 
+// بيرجّع فورم التسجيل لحالته الأصلية بالكامل — لازم يتنادى كل مرة الصفحة تتفتح
+// من جديد (وبعد نجاح التسجيل)، عشان بيانات حساب سابق (تخصصات، اسم، مستندات...)
+// متفضلش قاعدة في الفورم وتظهر كأنها متضافة تلقائيًا لحساب تاني لسه هيتعمل
+function resetRegisterForm() {
+  ['fullNameInput', 'registerEmailInput', 'registerPasswordInput', 'registerPasswordConfirmInput',
+    'registerPhoneInput', 'registerBioInput', 'newRegisterSpecialtyInput'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  var governorateInput = document.getElementById('registerGovernorateInput');
+  if (governorateInput) governorateInput.selectedIndex = 0;
+
+  var specialtyTags = document.getElementById('registerSpecialtyTags');
+  if (specialtyTags) specialtyTags.innerHTML = '';
+
+  var firstTypeCard = document.querySelector('#accountTypeOptions .account-type-card');
+  if (firstTypeCard) selectAccountType(firstTypeCard);
+
+  var avatarPreview = document.getElementById('registerAvatarPreview');
+  if (avatarPreview) {
+    avatarPreview.style.backgroundImage = '';
+    var label = avatarPreview.firstChild;
+    if (label) label.textContent = '📷';
+  }
+  registerAvatarUrl = null;
+  registrationDocUrls = {};
+
+  ['nationalIdStatus', 'personalPhotoStatus', 'qualificationStatus', 'unionCardStatus', 'commercialRecordStatus'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = '⬆';
+  });
+}
+
 async function handleRegistrationDocSelect(input, key, statusId) {
   const file = input.files && input.files[0];
   if (!file) return;
@@ -289,8 +323,7 @@ async function registerUser() {
       }),
     });
 
-    registrationDocUrls = {};
-    registerAvatarUrl = null;
+    resetRegisterForm();
     showToast(data.message || 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة');
     setTimeout(function () { showPage('login'); }, 1200);
   } catch (err) {
