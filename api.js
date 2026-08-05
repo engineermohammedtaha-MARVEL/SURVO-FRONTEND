@@ -1151,6 +1151,29 @@ const CATEGORY_ICONS = {
   accessories: '◆',
 };
 
+// بانر بيفضل ظاهر للمالك لحد ما يوثّق استلام الجهاز راجع منه — عشان معاملة
+// الإيجار متتنساش وتفضل معلّقة من غير متابعة
+function pendingReturnBannerHTML(item) {
+  if (!item.pendingReturns || !item.pendingReturns.length) return '';
+  return item.pendingReturns.map(function (r) {
+    return (
+      '<div class="info-box" style="margin:0 0 10px; align-items:center; gap:8px;">' +
+      '<span>🔔</span>' +
+      '<span style="flex:1;">الجهاز عند <strong>' + escapeHtml(r.otherPartyName || 'الطرف التاني') + '</strong> — لسه ما رجعش</span>' +
+      '<button class="btn btn-primary" style="flex:none; padding:6px 12px; font-size:11.5px;" onclick="openReturnHandover(\'' + item.id + '\', \'' + r.otherPartyId + '\')">استلام الجهاز</button>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+// بيوديك على طول لخانة توثيق حالة الجهاز مع الطرف التاني اللي الجهاز عنده،
+// وبيحدد نوع التوثيق "استلام" تلقائيًا بما إن الهدف هنا هو تسجيل رجوع الجهاز
+function openReturnHandover(equipmentId, otherPartyId) {
+  const currentUser = getCurrentUser();
+  openHandoverLog(equipmentId, currentUser ? currentUser.id : null, otherPartyId, true, 'myequip');
+  setHandoverType('checkin');
+}
+
 function myEquipRowHTML(item) {
   const icon = CATEGORY_ICONS[item.category] || '▦';
   const priceText = item.listingType === 'rent'
@@ -1169,6 +1192,7 @@ function myEquipRowHTML(item) {
   const viewsText = '👁 ' + (Number(item.viewsCount) || 0).toLocaleString('ar-EG') + ' مشاهدة';
 
   return (
+    pendingReturnBannerHTML(item) +
     '<div class="list-row" data-equip-id="' + item.id + '">' +
     '<span>' + icon + '</span>' +
     '<div style="flex:1;"><div style="font-size:12.5px; font-weight:700; color:var(--navy);">' + escapeHtml(item.title || CATEGORY_LABELS[item.category] || 'جهاز مساحة') + '</div>' +
