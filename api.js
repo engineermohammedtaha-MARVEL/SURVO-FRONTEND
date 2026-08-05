@@ -674,6 +674,31 @@ function toggleRequestBrandField() {
   wrap.style.display = category.value === 'accessories' ? 'none' : '';
 }
 
+// اكسسوارات مالهاش ماركة جهاز ولا رقم تسلسلي (بلاغات سرقة/فقدان)، وموافق عليها
+// تلقائيًا من غير مراجعة أدمن بعكس باقي الفئات — فالحقول دي مش منطقية ليها
+function toggleAddEquipCategoryFields() {
+  const category = document.getElementById('addEquipCategory');
+  if (!category) return;
+  const isAccessories = category.value === 'accessories';
+
+  const brandWrap = document.getElementById('addEquipBrandFieldWrap');
+  if (brandWrap) brandWrap.style.display = isAccessories ? 'none' : '';
+
+  const serialWrap = document.getElementById('addEquipSerialSectionWrap');
+  if (serialWrap) serialWrap.style.display = isAccessories ? 'none' : '';
+
+  const ownershipRow = document.getElementById('addEquipOwnershipDocRow');
+  if (ownershipRow) ownershipRow.style.display = isAccessories ? 'none' : '';
+
+  const photosLabel = document.getElementById('addEquipPhotosLabel');
+  if (photosLabel) photosLabel.textContent = isAccessories ? 'صور الاكسسوارات' : 'صور الجهاز';
+
+  const modelLabel = document.getElementById('addEquipModelLabel');
+  const modelInput = document.getElementById('addEquipModel');
+  if (modelLabel) modelLabel.textContent = isAccessories ? 'اسم/نوع الإكسسوار' : 'الموديل';
+  if (modelInput) modelInput.placeholder = isAccessories ? 'مثال: حامل ترايبود' : 'مثال: TS15';
+}
+
 function resetRequestForm() {
   const typeToggle = document.getElementById('requestTypeToggle');
   if (typeToggle) {
@@ -1197,6 +1222,7 @@ function startNewEquipment() {
 
   const category = document.getElementById('addEquipCategory');
   if (category) category.value = 'totalstation';
+  toggleAddEquipCategoryFields();
   const brand = document.getElementById('addEquipBrand');
   if (brand) brand.value = '';
   const brandOther = document.getElementById('addEquipBrandOtherInput');
@@ -1243,6 +1269,7 @@ function editMyEquipment(id) {
 
   const category = document.getElementById('addEquipCategory');
   if (category) category.value = item.category || 'totalstation';
+  toggleAddEquipCategoryFields();
 
   // مفيش برند/موديل متخزنين لوحدهم في الداتابيز، بس عنوان الإعلان — فبنحاول نفصلهم عن بعض
   // بمطابقة أول كلمة في العنوان مع قائمة البراندات المعروفة
@@ -1409,7 +1436,7 @@ async function submitAddEquipment() {
 
   const title = (brand.trim() + ' ' + model.trim()).trim();
   if (!title) {
-    showToast('اكتب ماركة الجهاز أو الموديل على الأقل');
+    showToast(category === 'accessories' ? 'اكتب اسم أو نوع الإكسسوار' : 'اكتب ماركة الجهاز أو الموديل على الأقل');
     return;
   }
 

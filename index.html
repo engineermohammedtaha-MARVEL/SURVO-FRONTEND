@@ -1131,27 +1131,29 @@
         </div>
 
         <span class="field-label">النوع</span>
-        <select class="field-gap" id="addEquipCategory"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
+        <select class="field-gap" id="addEquipCategory" onchange="toggleAddEquipCategoryFields()"><option value="totalstation">توتال ستاشن</option><option value="gps">GPS</option><option value="level">ميزان</option><option value="laser">ليزر سكانر</option><option value="accessories">اكسسوارات</option></select>
 
-        <span class="field-label">ماركة الجهاز</span>
-        <select class="field-gap" id="addEquipBrand" onchange="toggleBrandOtherInput('addEquipBrand', 'addEquipBrandOtherInput')">
-          <option value="" disabled selected>اختار ماركة الجهاز</option>
-          <option value="Leica">Leica</option>
-          <option value="Sokkia">Sokkia</option>
-          <option value="Topcon">Topcon</option>
-          <option value="Trimble">Trimble</option>
-          <option value="Spectra">Spectra</option>
-          <option value="Sino">Sino</option>
-          <option value="Geomax">Geomax</option>
-          <option value="South">South</option>
-          <option value="Kolida">Kolida</option>
-          <option value="Hi Target">Hi Target</option>
-          <option value="Nikon">Nikon</option>
-          <option value="other">نوع آخر</option>
-        </select>
-        <input type="text" class="field-gap" id="addEquipBrandOtherInput" placeholder="اكتب ماركة الجهاز" style="display:none;">
+        <div id="addEquipBrandFieldWrap">
+          <span class="field-label">ماركة الجهاز</span>
+          <select class="field-gap" id="addEquipBrand" onchange="toggleBrandOtherInput('addEquipBrand', 'addEquipBrandOtherInput')">
+            <option value="" disabled selected>اختار ماركة الجهاز</option>
+            <option value="Leica">Leica</option>
+            <option value="Sokkia">Sokkia</option>
+            <option value="Topcon">Topcon</option>
+            <option value="Trimble">Trimble</option>
+            <option value="Spectra">Spectra</option>
+            <option value="Sino">Sino</option>
+            <option value="Geomax">Geomax</option>
+            <option value="South">South</option>
+            <option value="Kolida">Kolida</option>
+            <option value="Hi Target">Hi Target</option>
+            <option value="Nikon">Nikon</option>
+            <option value="other">نوع آخر</option>
+          </select>
+          <input type="text" class="field-gap" id="addEquipBrandOtherInput" placeholder="اكتب ماركة الجهاز" style="display:none;">
+        </div>
 
-        <span class="field-label">الموديل</span>
+        <span class="field-label" id="addEquipModelLabel">الموديل</span>
         <input type="text" class="field-gap" id="addEquipModel" placeholder="مثال: TS15">
 
         <span class="field-label" id="addEquipPriceLabel">السعر (ج / يوم)</span>
@@ -1160,7 +1162,7 @@
         <span class="field-label">المحافظة</span>
         <select class="field-gap" id="addEquipGovernorate"><option>القاهرة</option><option>الجيزة</option><option>الإسكندرية</option><option>الدقهلية</option><option>البحر الأحمر</option><option>البحيرة</option><option>الفيوم</option><option>الغربية</option><option>الإسماعيلية</option><option>المنوفية</option><option>المنيا</option><option>القليوبية</option><option>الوادي الجديد</option><option>السويس</option><option>أسوان</option><option>أسيوط</option><option>بني سويف</option><option>بورسعيد</option><option>دمياط</option><option>الشرقية</option><option>جنوب سيناء</option><option>كفر الشيخ</option><option>مطروح</option><option>الأقصر</option><option>قنا</option><option>شمال سيناء</option><option>سوهاج</option></select>
 
-        <span class="field-label">صور الجهاز</span>
+        <span class="field-label" id="addEquipPhotosLabel">صور الجهاز</span>
         <div class="grid2 field-gap">
           <label class="photo-slot" id="addEquipPhotoSlot1" style="cursor:pointer; background-size:cover; background-position:center;">
             📷 صورة 1
@@ -1175,7 +1177,7 @@
         <span class="field-label">وصف الجهاز</span>
         <textarea class="field-gap" id="addEquipDescription" placeholder="مثال: الحالة، الملحقات المرفقة، تاريخ الشراء، أي تفاصيل تهم المستأجر أو المشتري"></textarea>
 
-        <label class="upload-row" style="cursor:pointer;">
+        <label class="upload-row" id="addEquipOwnershipDocRow" style="cursor:pointer;">
           <span>📄</span>
           <div style="flex:1;">
             <div style="font-size:12.5px; font-weight:700;">إرفاق سند الملكية أو شهادة المعايرة</div>
@@ -1185,24 +1187,26 @@
           <input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleEquipDocSelect(this, 'ownershipDocUrl', 'ownershipDocStatus')">
         </label>
 
-        <div class="section-label" style="margin-top:6px;">توثيق الرقم التسلسلي</div>
-        <div class="subtitle" style="margin-top:-8px;">تسجيل الرقم التسلسلي وإرفاق صورة له على الجهاز شرط أساسي لإتمام الإضافة — وده جزء من نظام الاستعلام والتبليغ اللي بيحمي كل مستخدمي المنصة.</div>
+        <div id="addEquipSerialSectionWrap">
+          <div class="section-label" style="margin-top:6px;">توثيق الرقم التسلسلي</div>
+          <div class="subtitle" style="margin-top:-8px;">تسجيل الرقم التسلسلي وإرفاق صورة له على الجهاز شرط أساسي لإتمام الإضافة — وده جزء من نظام الاستعلام والتبليغ اللي بيحمي كل مستخدمي المنصة.</div>
 
-        <span class="field-label">الرقم التسلسلي للجهاز (Serial Number) <span style="color:var(--rust);">*</span></span>
-        <input type="text" class="field-gap" id="addEquipSerialNumber" placeholder="مثال: TS15-884213-EG">
+          <span class="field-label">الرقم التسلسلي للجهاز (Serial Number) <span style="color:var(--rust);">*</span></span>
+          <input type="text" class="field-gap" id="addEquipSerialNumber" placeholder="مثال: TS15-884213-EG">
 
-        <label class="upload-row" style="margin-bottom:6px; border-color:var(--amber-dark); cursor:pointer;">
-          <span>🔢</span>
-          <div style="flex:1;">
-            <div style="font-size:12.5px; font-weight:700;">صورة الرقم التسلسلي على الجهاز <span style="color:var(--rust);">*</span></div>
-            <div style="font-size:10.5px; color:var(--ink-faint);">لازم يكون الرقم واضح ومطابق لما كتبته فوق</div>
+          <label class="upload-row" style="margin-bottom:6px; border-color:var(--amber-dark); cursor:pointer;">
+            <span>🔢</span>
+            <div style="flex:1;">
+              <div style="font-size:12.5px; font-weight:700;">صورة الرقم التسلسلي على الجهاز <span style="color:var(--rust);">*</span></div>
+              <div style="font-size:10.5px; color:var(--ink-faint);">لازم يكون الرقم واضح ومطابق لما كتبته فوق</div>
+            </div>
+            <i id="serialPhotoStatus">⬆</i>
+            <input type="file" accept="image/*" style="display:none;" onchange="handleEquipDocSelect(this, 'serialNumberPhotoUrl', 'serialPhotoStatus')">
+          </label>
+          <div class="info-box light" style="margin-bottom:16px;">
+            <span>⚠</span>
+            <span>مش هينشر إعلانك إلا بعد ما نتأكد إن الرقم التسلسلي مش عليه أي بلاغ سرقة أو فقدان مسجّل على المنصة.</span>
           </div>
-          <i id="serialPhotoStatus">⬆</i>
-          <input type="file" accept="image/*" style="display:none;" onchange="handleEquipDocSelect(this, 'serialNumberPhotoUrl', 'serialPhotoStatus')">
-        </label>
-        <div class="info-box light" style="margin-bottom:16px;">
-          <span>⚠</span>
-          <span>مش هينشر إعلانك إلا بعد ما نتأكد إن الرقم التسلسلي مش عليه أي بلاغ سرقة أو فقدان مسجّل على المنصة.</span>
         </div>
 
         <button class="btn btn-primary btn-block" id="addEquipSubmitBtn" onclick="submitAddEquipment()">إضافة الجهاز</button>
@@ -1499,8 +1503,8 @@
   </div>
 </div>
 
-<script src="api.js?v=55"></script>
-<script src="script.js?v=55"></script>
+<script src="api.js?v=56"></script>
+<script src="script.js?v=56"></script>
 
 </body>
 </html>
