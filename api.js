@@ -1795,6 +1795,10 @@ function notificationRowHTML(n) {
 
 function openNotificationTarget(notificationId, contactUserId, targetType, targetId) {
   markNotificationRead(notificationId);
+  if (targetType === 'deal' && targetId) {
+    openDealFromNotification(targetId);
+    return;
+  }
   if (targetType === 'equipment' && targetId) {
     openListingDetail('equipment', targetId);
     return;
@@ -1805,6 +1809,22 @@ function openNotificationTarget(notificationId, contactUserId, targetType, targe
   }
   if (contactUserId) {
     openChatWithUser(contactUserId);
+  }
+}
+
+// بيوصل المستخدم (مالك أو طرف تاني) لصفحة توثيق الجهاز بالظبط على الاتفاق
+// اللي الإشعار ده بتاعه — مباشرة، من غير ما يمر بصفحة تفاصيل الجهاز (اللي بتخفي
+// زرار التوثيق عن المالك) أو يحتاج يختار الطرف التاني من قائمة محادثاته
+async function openDealFromNotification(dealId) {
+  try {
+    const data = await apiRequest('/equipment/deals/' + dealId);
+    const deal = data.item;
+    const currentUser = getCurrentUser();
+    const isOwnerView = !!(currentUser && currentUser.id === deal.ownerId);
+    const otherPartyId = isOwnerView ? deal.otherPartyId : (currentUser ? currentUser.id : null);
+    openHandoverLog(deal.equipmentId, deal.ownerId, otherPartyId, isOwnerView, 'home');
+  } catch (err) {
+    showToast(err.message || 'تعذر فتح الاتفاق');
   }
 }
 
