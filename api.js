@@ -697,6 +697,9 @@ function toggleAddEquipCategoryFields() {
   const modelInput = document.getElementById('addEquipModel');
   if (modelLabel) modelLabel.textContent = isAccessories ? 'اسم/نوع الإكسسوار' : 'الموديل';
   if (modelInput) modelInput.placeholder = isAccessories ? 'مثال: حامل ترايبود' : 'مثال: TS15';
+
+  const descLabel = document.getElementById('addEquipDescLabel');
+  if (descLabel) descLabel.textContent = isAccessories ? 'وصف الإكسسوار' : 'وصف الجهاز';
 }
 
 function resetRequestForm() {
@@ -1248,7 +1251,7 @@ function startNewEquipment() {
   const title = document.getElementById('addEquipPageTitle');
   if (title) title.textContent = 'إضافة إعلان جديد';
   const submitBtn = document.getElementById('addEquipSubmitBtn');
-  if (submitBtn) submitBtn.textContent = 'إضافة الجهاز';
+  if (submitBtn) submitBtn.textContent = 'إضافة الإعلان';
 
   showPage('addequip');
 }
@@ -1463,13 +1466,13 @@ async function submitAddEquipment() {
     const data = isEdit
       ? await apiRequest('/equipment/' + editedId, { method: 'PATCH', body: JSON.stringify(payload) })
       : await apiRequest('/equipment', { method: 'POST', body: JSON.stringify(payload) });
-    showToast(data.message || (isEdit ? 'تم حفظ التعديلات ✓' : 'تم إضافة الجهاز ✓'));
+    showToast(data.message || (isEdit ? 'تم حفظ التعديلات ✓' : 'تم إضافة الإعلان ✓'));
     if (isEdit) delete listingDetailCache['equipment:' + editedId];
     editingEquipmentId = null;
     resetAddEquipPhotos();
     setTimeout(function () { showPage('myequip'); loadMyEquipment(); }, 900);
   } catch (err) {
-    showToast(err.message || (isEdit ? 'حصل خطأ أثناء حفظ التعديلات' : 'حصل خطأ أثناء إضافة الجهاز'));
+    showToast(err.message || (isEdit ? 'حصل خطأ أثناء حفظ التعديلات' : 'حصل خطأ أثناء إضافة الإعلان'));
   }
 }
 
