@@ -359,6 +359,27 @@ async function loginUser() {
   }
 }
 
+// مستندات توثيق جديدة اترفعت من صفحة تعديل البيانات ولسه مانضمتش للحفظ
+var editVerificationDocUrls = {};
+
+const VERIFICATION_STATUS_LABELS = {
+  unverified: 'التوثيق بيدي حسابك علامة "موثّق" وبيزود ثقة العملاء بيك.',
+  pending: 'مستنداتك قيد المراجعة من الإدارة، هيوصلك إشعار أول ما تتوثّق.',
+  verified: 'حسابك موثّق ✓ — لو حدّثت أي مستند، الحساب هيرجع قيد المراجعة تاني.',
+};
+
+// بيظهر بس صفوف المستندات المرتبطة فعليًا بنوع حساب المستخدم (زي شاشة التسجيل بالظبط)
+function updateEditVerificationRowsVisibility(accountType) {
+  const unionRow = document.getElementById('editUnionCardRow');
+  if (unionRow) unionRow.style.display = (accountType === 'engineer') ? '' : 'none';
+
+  const commercialRow = document.getElementById('editCommercialRecordRow');
+  if (commercialRow) commercialRow.style.display = (accountType === 'office') ? '' : 'none';
+
+  const qualificationRow = document.getElementById('editQualificationRow');
+  if (qualificationRow) qualificationRow.style.display = (accountType === 'general' || accountType === 'assistant' || accountType === 'office') ? 'none' : '';
+}
+
 function openEditProfile() {
   const user = getCurrentUser();
   if (user) {
@@ -379,8 +400,50 @@ function openEditProfile() {
         return '<span class="tag" onclick="removeSpecialtyTag(this)" style="cursor:pointer;">' + escapeHtml(s) + ' ✕</span>';
       }).join('');
     }
+
+    editVerificationDocUrls = {};
+    updateEditVerificationRowsVisibility(user.accountType);
+    [
+      ['nationalIdUrl', 'editNationalIdStatus'],
+      ['personalPhotoUrl', 'editPersonalPhotoStatus'],
+      ['qualificationUrl', 'editQualificationStatus'],
+      ['unionCardUrl', 'editUnionCardStatus'],
+      ['commercialRecordUrl', 'editCommercialRecordStatus'],
+    ].forEach(function (pair) {
+      const statusEl = document.getElementById(pair[1]);
+      if (statusEl) statusEl.textContent = user[pair[0]] ? '✓' : '⬆';
+    });
+    const statusText = document.getElementById('editProfileVerificationStatus');
+    if (statusText) statusText.textContent = VERIFICATION_STATUS_LABELS[user.verification] || VERIFICATION_STATUS_LABELS.unverified;
   }
   showPage('editprofile');
+}
+
+async function handleEditVerificationDocSelect(input, key, statusId) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.textContent = '…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', 'verification');
+    const res = await fetch(API_BASE_URL + '/uploads', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + getAuthToken() },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'فشل رفع الملف');
+
+    editVerificationDocUrls[key] = data.url;
+    if (statusEl) statusEl.textContent = '✓';
+  } catch (err) {
+    if (statusEl) statusEl.textContent = '⬆';
+    showToast(err.message || 'تعذر رفع الملف');
+  }
 }
 
 async function saveProfileEdits() {
@@ -393,13 +456,17 @@ async function saveProfileEdits() {
   try {
     const data = await apiRequest('/users/me', {
       method: 'PATCH',
-      body: JSON.stringify({
-        fullName: nameInput ? nameInput.value.trim() : undefined,
-        governorate: govSelect ? govSelect.value : undefined,
-        bio: bioInput ? bioInput.value.trim() : undefined,
-        specialties: specialtyTags,
-      }),
+      body: JSON.stringify(Object.assign(
+        {
+          fullName: nameInput ? nameInput.value.trim() : undefined,
+          governorate: govSelect ? govSelect.value : undefined,
+          bio: bioInput ? bioInput.value.trim() : undefined,
+          specialties: specialtyTags,
+        },
+        editVerificationDocUrls
+      )),
     });
+    editVerificationDocUrls = {};
     setCurrentUser(data.user);
     renderUserProfile(data.user);
     showToast('تم حفظ التعديلات ✓');

@@ -969,7 +969,16 @@
         <span class="field-label">نبذة عنك</span>
         <textarea class="field-gap" id="editProfileBio">مهندس مساحة خبره 14 سنه في مشاريع الطرق والبنية التحتية والمشاريع الإنشائية، مع إجادة تامة للأجهزة المساحية وأعمال المكتب الفني.</textarea>
 
-        <button class="btn btn-primary btn-block" onclick="saveProfileEdits()">حفظ التعديلات</button>
+        <div class="section-label" style="margin-top:6px;">توثيق الحساب</div>
+        <div class="subtitle" style="margin-top:-8px;" id="editProfileVerificationStatus">التوثيق بيدي حسابك علامة "موثّق" وبيزود ثقة العملاء بيك.</div>
+
+        <label class="upload-row" style="cursor:pointer;"><span>🪪</span><div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">بطاقة الرقم القومي</div><div style="font-size:10.5px; color:var(--ink-faint);">وش وضهر</div></div><span id="editNationalIdStatus">⬆</span><input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleEditVerificationDocSelect(this, 'nationalIdUrl', 'editNationalIdStatus')"></label>
+        <label class="upload-row" style="cursor:pointer;"><span>🙂</span><div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">صورة شخصية واضحة</div><div style="font-size:10.5px; color:var(--ink-faint);">لتوثيق هوية المسجّل</div></div><span id="editPersonalPhotoStatus">⬆</span><input type="file" accept="image/*" style="display:none;" onchange="handleEditVerificationDocSelect(this, 'personalPhotoUrl', 'editPersonalPhotoStatus')"></label>
+        <label class="upload-row" id="editQualificationRow" style="cursor:pointer;"><span>🎓</span><div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">المؤهل الدراسي</div><div style="font-size:10.5px; color:var(--ink-faint);">شهادة التخرج أو ما يفيد المؤهل</div></div><span id="editQualificationStatus">⬆</span><input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleEditVerificationDocSelect(this, 'qualificationUrl', 'editQualificationStatus')"></label>
+        <label class="upload-row" id="editUnionCardRow" style="cursor:pointer;"><span>📜</span><div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">كارنيه نقابة المهندسين</div><div style="font-size:10.5px; color:var(--ink-faint);">ساري الصلاحية</div></div><span id="editUnionCardStatus">⬆</span><input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleEditVerificationDocSelect(this, 'unionCardUrl', 'editUnionCardStatus')"></label>
+        <label class="upload-row" id="editCommercialRecordRow" style="display:none; cursor:pointer;"><span>📄</span><div style="flex:1;"><div style="font-size:12.5px; font-weight:700;">السجل التجاري</div><div style="font-size:10.5px; color:var(--ink-faint);">خاص بحسابات المكاتب والشركات</div></div><span id="editCommercialRecordStatus">⬆</span><input type="file" accept="image/*,application/pdf" style="display:none;" onchange="handleEditVerificationDocSelect(this, 'commercialRecordUrl', 'editCommercialRecordStatus')"></label>
+
+        <button class="btn btn-primary btn-block" style="margin-top:14px;" onclick="saveProfileEdits()">حفظ التعديلات</button>
       </div>
 
       <!-- ============ PUBLIC PROFILE (dynamic) ============ -->
@@ -1490,8 +1499,8 @@
   </div>
 </div>
 
-<script src="api.js?v=54"></script>
-<script src="script.js?v=54"></script>
+<script src="api.js?v=55"></script>
+<script src="script.js?v=55"></script>
 
 </body>
 </html>
