@@ -492,6 +492,27 @@
           </div>
           <span style="color:var(--ink-faint);">←</span>
         </div>
+
+        <div class="list-row" onclick="showPage('myrentals'); loadMyRentals()" style="cursor:pointer; margin-top:9px;">
+          <span style="font-size:18px;">📦</span>
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">الأجهزة اللي مستأجرها حاليًا</div>
+            <div style="font-size:11px; color:var(--ink-soft);">تابع حالة كل جهاز مستأجره لحد ما ترجّعه وتقفل المعاملة بأمان</div>
+          </div>
+          <span style="color:var(--ink-faint);">←</span>
+        </div>
+      </div>
+
+      <!-- ============ MY RENTALS (devices I'm currently renting) ============ -->
+      <div class="page" id="page-myrentals">
+        <div class="topbar">
+          <div class="icon-btn" onclick="showPage('requesthub')">→</div>
+          <div class="page-title">الأجهزة اللي مستأجرها حاليًا</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div id="myRentalsList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>
+        </div>
       </div>
 
       <!-- ============ MY JOB POSTINGS + APPLICATIONS ============ -->
@@ -1503,8 +1524,8 @@
   </div>
 </div>
 
-<script src="api.js?v=59"></script>
-<script src="script.js?v=59"></script>
+<script src="api.js?v=60"></script>
+<script src="script.js?v=60"></script>
 
 </body>
 </html>

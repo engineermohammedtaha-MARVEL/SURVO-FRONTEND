@@ -1174,6 +1174,51 @@ function openReturnHandover(equipmentId, otherPartyId) {
   setHandoverType('checkin');
 }
 
+// ============================================================
+// MY RENTALS (page-myrentals) - الأجهزة اللي المستخدم مستأجرها حاليًا (الطرف التاني)
+// ============================================================
+
+async function loadMyRentals() {
+  const wrapEl = document.getElementById('myRentalsList');
+  if (!wrapEl) return;
+  wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>';
+  try {
+    const data = await apiRequest('/equipment/renting');
+    const items = data.items || [];
+    wrapEl.innerHTML = items.length
+      ? items.map(myRentalRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">مفيش أجهزة مستأجرها حاليًا</div>';
+  } catch (err) {
+    wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل القائمة: ' + (err.message || '') + '</div>';
+  }
+}
+
+function myRentalStatusLabel(item) {
+  if (item.currentlyHolding) return { text: 'الجهاز عندك دلوقتي', color: 'var(--amber-dark)' };
+  if (item.returned) return { text: 'الجهاز رجع — تقدروا تقفلوا المعاملة بأمان', color: 'var(--navy)' };
+  return { text: 'الاتفاق مؤكد — لسه محصلش تسليم', color: 'var(--ink-soft)' };
+}
+
+function myRentalRowHTML(item) {
+  const status = myRentalStatusLabel(item);
+  return (
+    '<div class="list-row" onclick="openRentalHandover(\'' + item.equipment.id + '\', \'' + item.owner.id + '\')" style="cursor:pointer; margin-top:9px;">' +
+    '<span style="font-size:18px;">📦</span>' +
+    '<div style="flex:1;">' +
+    '<div style="font-size:13px; font-weight:700; color:var(--navy);">' + escapeHtml(item.equipment.title) + '</div>' +
+    '<div style="font-size:11px; color:var(--ink-soft);">من ' + escapeHtml(item.owner.fullName) + '</div>' +
+    '<div style="font-size:11px; font-weight:700; margin-top:2px; color:' + status.color + ';">' + status.text + '</div>' +
+    '</div>' +
+    '<span style="color:var(--ink-faint);">←</span>' +
+    '</div>'
+  );
+}
+
+function openRentalHandover(equipmentId, ownerId) {
+  const currentUser = getCurrentUser();
+  openHandoverLog(equipmentId, ownerId, currentUser ? currentUser.id : null, false, 'myrentals');
+}
+
 function myEquipRowHTML(item) {
   const icon = CATEGORY_ICONS[item.category] || '▦';
   const priceText = item.listingType === 'rent'
@@ -2485,6 +2530,19 @@ function dealTypePickerHTML() {
 
 function dealStatusHTML(deal) {
   const currentUser = getCurrentUser();
+  if (deal && deal.status === 'completed') {
+    return (
+      '<div class="info-box" style="margin-bottom:14px;">' +
+      '<span>✅</span>' +
+      '<span>تم إنهاء المعاملة بأمان — الطرفين أكدوا إن الجهاز رجع/اتسلم بسلام.</span>' +
+      '</div>' +
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="section-label" style="margin:0 0 8px;">عايزين تتفقوا تاني على نفس الجهاز؟</div>' +
+      dealTypePickerHTML() +
+      '<button class="btn btn-primary btn-block" onclick="proposeHandoverDeal()">اقترح اتفاق جديد</button>' +
+      '</div>'
+    );
+  }
   if (!deal || deal.status === 'cancelled') {
     return (
       '<div class="card" style="margin-bottom:14px;">' +
@@ -2527,6 +2585,40 @@ function dealStatusHTML(deal) {
   );
 }
 
+// كارت "إنهاء المعاملة بأمان" — بيظهر بس لما الجهاز يكون رجع فعلاً (إيجار) أو
+// اتوثّق تسليمه (بيع)، ومحتاج تأكيد الطرفين زي بالظبط تأكيد الاتفاق الأصلي
+function dealEndHTML(deal) {
+  const currentUser = getCurrentUser();
+  const isOwnerSide = currentUser && currentUser.id === deal.ownerId;
+  const myEnded = isOwnerSide ? deal.ownerEnded : deal.otherPartyEnded;
+  const theirEnded = isOwnerSide ? deal.otherPartyEnded : deal.ownerEnded;
+  if (myEnded && !theirEnded) {
+    return (
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="section-label" style="margin:0 0 8px;">في انتظار تأكيد الطرف التاني على إنهاء المعاملة</div>' +
+      '<div class="subtitle" style="margin-top:-4px;">لما يأكد برضه، المعاملة هتتقفل بأمان للطرفين.</div>' +
+      '</div>'
+    );
+  }
+  return (
+    '<div class="card" style="margin-bottom:14px;">' +
+    '<div class="section-label" style="margin:0 0 8px;">' + (theirEnded ? 'الطرف التاني أكد إن المعاملة خلصت' : 'المعاملة خلصت؟') + '</div>' +
+    '<div class="subtitle" style="margin-top:-4px; margin-bottom:10px;">لو الطرفين متأكدين إن الجهاز رجع/اتسلم بسلام، اقفلوا المعاملة بأمان.</div>' +
+    '<button class="btn btn-primary btn-block" onclick="endHandoverDeal(\'' + deal.id + '\')">✅ إنهاء المعاملة بأمان</button>' +
+    '</div>'
+  );
+}
+
+async function endHandoverDeal(dealId) {
+  try {
+    await apiRequest('/equipment/deals/' + dealId + '/end', { method: 'POST' });
+    showToast('تم تسجيل تأكيدك ✓');
+    loadHandoverDeal();
+  } catch (err) {
+    showToast(err.message || 'تعذر إنهاء المعاملة');
+  }
+}
+
 function setHandoverDealType(type) {
   handoverDealTypeSelected = type;
   updateHandoverDealTypeButtons();
@@ -2565,9 +2657,12 @@ async function loadHandoverDeal() {
       sectionEl.innerHTML = (
         '<div class="info-box" style="margin-bottom:14px;">' +
         '<span>✅</span>' +
-        '<span>تم توثيق تسليم صفقة البيع/الشراء دي بالفعل — مفيش حاجة تانية مطلوبة.</span>' +
-        '</div>'
+        '<span>تم توثيق تسليم صفقة البيع/الشراء دي بالفعل.</span>' +
+        '</div>' +
+        dealEndHTML(handoverCurrentDeal)
       );
+    } else if (isConfirmed && !isSale && items.length > 0 && items[items.length - 1].type === 'checkin') {
+      sectionEl.innerHTML += dealEndHTML(handoverCurrentDeal);
     }
   } catch (err) {
     sectionEl.innerHTML = '<div class="subtitle" style="text-align:center; padding:10px 0;">تعذر تحميل حالة الاتفاق: ' + (err.message || '') + '</div>';
