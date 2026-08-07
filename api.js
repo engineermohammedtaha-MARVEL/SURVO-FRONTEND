@@ -592,8 +592,10 @@ function renderListingDetail(type, item) {
     const currentUser = getCurrentUser();
     const isOwnEquipment = !!(currentUser && item.owner && item.owner.id === currentUser.id);
     toggleListingOwnRow(false);
+    // خدمة الاتفاق وتوثيق الاستلام/التسليم خاصة بالأجهزة بس — الاكسسوارات تواصل مباشر بس (مراسلة/اتصال)
+    const isAccessory = item.category === 'accessories';
     const handoverRow = document.getElementById('equipDetailHandoverRow');
-    if (handoverRow) handoverRow.style.display = isOwnEquipment ? 'none' : '';
+    if (handoverRow) handoverRow.style.display = (isOwnEquipment || isAccessory) ? 'none' : '';
     const applyJobRowEquip = document.getElementById('equipDetailApplyJobRow');
     if (applyJobRowEquip) applyJobRowEquip.style.display = 'none';
   } else if (type === 'job') {
@@ -1236,6 +1238,11 @@ function myEquipRowHTML(item) {
 
   const viewsText = '👁 ' + (Number(item.viewsCount) || 0).toLocaleString('ar-EG') + ' مشاهدة';
 
+  // خدمة الاتفاق وتوثيق الاستلام/التسليم خاصة بالأجهزة بس — مش متاحة للاكسسوارات
+  const dealIconHTML = item.category === 'accessories'
+    ? ''
+    : '<span class="delete-ico" style="margin-left:2px;" onclick="openHandoverPartnerPickerFor(\'' + item.id + '\')">📷</span>';
+
   return (
     pendingReturnBannerHTML(item) +
     '<div class="list-row" data-equip-id="' + item.id + '">' +
@@ -1244,7 +1251,7 @@ function myEquipRowHTML(item) {
     '<div style="font-size:10.5px; color:var(--ink-soft);">' + escapeHtml(priceText) + ' — ' + viewsText + '</div></div>' +
     moderationBadge +
     statusBadge +
-    '<span class="delete-ico" style="margin-left:2px;" onclick="openHandoverPartnerPickerFor(\'' + item.id + '\')">📷</span>' +
+    dealIconHTML +
     '<span class="delete-ico" style="margin-left:2px;" onclick="editMyEquipment(\'' + item.id + '\')">✏️</span>' +
     '<span class="delete-ico" onclick="deleteMyEquipment(\'' + item.id + '\')">🗑</span>' +
     '</div>'
