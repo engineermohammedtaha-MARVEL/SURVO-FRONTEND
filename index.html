@@ -695,17 +695,15 @@
             <div class="section-label">قائمة فحص سريعة</div>
             <div id="handoverChecklist"></div>
 
-            <div class="upload-row" style="margin-top:9px;" id="handoverCertificateRow">
+            <label class="upload-row" style="margin-top:9px; cursor:pointer;" id="handoverCertificateRow">
               <span>📎</span>
               <div style="flex:1;">
                 <div style="font-size:12.5px; font-weight:700;">إرفاق صورة محضر الاستلام والتسليم</div>
                 <div style="font-size:10.5px; color:var(--ink-faint);" id="handoverCertificateStatus">موقّع من الطرفين (المكتب والمستلم)</div>
               </div>
-              <label style="cursor:pointer;">
-                <i id="handoverCertificateIcon">⬆</i>
-                <input type="file" accept="image/*" style="display:none;" onchange="handleHandoverCertificateSelect(this)">
-              </label>
-            </div>
+              <i id="handoverCertificateIcon">⬆</i>
+              <input type="file" accept="image/*" style="display:none;" onchange="handleHandoverCertificateSelect(this)">
+            </label>
 
             <span class="field-label" style="margin-top:14px; display:block;">ملاحظات (اختياري)</span>
             <textarea class="field-gap" id="handoverNotesInput" placeholder="مثال: يوجد خدش بسيط في الجانب الأيمن"></textarea>
