@@ -2758,11 +2758,19 @@ function setHandoverType(type) {
   updateHandoverTypeButtons();
 }
 
+// من منظور صاحب الإعلان: "تسليم" = بيدّي الجهاز (checkout)، "استلام" = بياخده رجوع (checkin).
+// من منظور الطرف التاني (المستأجر/المشتري): العكس بالظبط لنفس الحدث
 function updateHandoverTypeButtons() {
   const checkoutBtn = document.getElementById('handoverTypeCheckoutBtn');
   const checkinBtn = document.getElementById('handoverTypeCheckinBtn');
-  if (checkoutBtn) checkoutBtn.className = handoverSelectedType === 'checkout' ? 'btn btn-primary' : 'btn';
-  if (checkinBtn) checkinBtn.className = handoverSelectedType === 'checkin' ? 'btn btn-primary' : 'btn';
+  if (checkoutBtn) {
+    checkoutBtn.textContent = handoverIsOwnerView ? '📤 تسليم' : '📥 استلام';
+    checkoutBtn.className = handoverSelectedType === 'checkout' ? 'btn btn-primary' : 'btn';
+  }
+  if (checkinBtn) {
+    checkinBtn.textContent = handoverIsOwnerView ? '📥 استلام' : '📤 تسليم';
+    checkinBtn.className = handoverSelectedType === 'checkin' ? 'btn btn-primary' : 'btn';
+  }
 }
 
 function renderHandoverPhotoSlots() {
@@ -2936,7 +2944,10 @@ async function submitHandoverEntry() {
 function handoverEntryHTML(entry) {
   const currentUser = getCurrentUser();
   const isMine = currentUser && entry.createdById === currentUser.id;
-  const typeLabel = entry.type === 'checkout' ? '📤 تسليم' : '📥 استلام';
+  // نفس منطق تسمية استلام/تسليم في الأزرار — بيختلف حسب إنت صاحب الإعلان ولا الطرف التاني
+  const typeLabel = entry.type === 'checkout'
+    ? (handoverIsOwnerView ? '📤 تسليم' : '📥 استلام')
+    : (handoverIsOwnerView ? '📥 استلام' : '📤 تسليم');
   const date = new Date(entry.createdAt).toLocaleString('ar-EG');
   const photosHTML = entry.photos.map(function (_, idx) {
     return '<div class="photo-slot done" style="width:60px; height:60px;" id="handoverPhoto_' + entry.id + '_' + idx + '"></div>';
