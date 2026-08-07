@@ -917,6 +917,15 @@
           <span style="color:var(--ink-faint);">←</span>
         </div>
 
+        <div class="list-row" onclick="showPage('transactions'); loadMyTransactions();" style="cursor:pointer; margin-top:9px;">
+          <span style="font-size:18px;">🧾</span>
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:700; color:var(--navy);">معاملاتي</div>
+            <div style="font-size:11px; color:var(--ink-soft);">كل صفقات البيع والإيجار بتاعتك، النشطة والمنتهية</div>
+          </div>
+          <span style="color:var(--ink-faint);">←</span>
+        </div>
+
         <div class="list-row" onclick="showPage('saved-searches'); loadSavedSearches();" style="cursor:pointer; margin-top:9px;">
           <span style="font-size:18px;">💾</span>
           <div style="flex:1;">
@@ -951,6 +960,18 @@
           <span style="width:34px;"></span>
         </div>
         <div id="savedSearchesList">
+          <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>
+        </div>
+      </div>
+
+      <!-- ============ MY TRANSACTIONS (كل صفقات البيع/الإيجار، من أي جانب) ============ -->
+      <div class="page" id="page-transactions">
+        <div class="topbar">
+          <div class="icon-btn" onclick="showPage('profile')">→</div>
+          <div class="page-title">معاملاتي</div>
+          <span style="width:34px;"></span>
+        </div>
+        <div id="myTransactionsList">
           <div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>
         </div>
       </div>
@@ -1522,8 +1543,8 @@
   </div>
 </div>
 
-<script src="api.js?v=62"></script>
-<script src="script.js?v=62"></script>
+<script src="api.js?v=63"></script>
+<script src="script.js?v=63"></script>
 
 </body>
 </html>

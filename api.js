@@ -1221,6 +1221,72 @@ function openRentalHandover(equipmentId, ownerId) {
   openHandoverLog(equipmentId, ownerId, currentUser ? currentUser.id : null, false, 'myrentals');
 }
 
+// ============================================================
+// MY TRANSACTIONS (page-transactions) - كل صفقات البيع/الإيجار بتاعت المستخدم،
+// سواء هو صاحب الإعلان أو الطرف التاني، نشطة أو خلصت
+// ============================================================
+
+var myTransactionsCache = {};
+
+async function loadMyTransactions() {
+  const wrapEl = document.getElementById('myTransactionsList');
+  if (!wrapEl) return;
+  wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">بتحمّل...</div>';
+  try {
+    const data = await apiRequest('/equipment/transactions');
+    const items = data.items || [];
+    myTransactionsCache = {};
+    items.forEach(function (item) { myTransactionsCache[item.dealId] = item; });
+    wrapEl.innerHTML = items.length
+      ? items.map(transactionRowHTML).join('')
+      : '<div class="subtitle" style="text-align:center; margin-top:16px;">مفيش معاملات لسه</div>';
+  } catch (err) {
+    wrapEl.innerHTML = '<div class="subtitle" style="text-align:center; margin-top:16px;">تعذر تحميل المعاملات: ' + (err.message || '') + '</div>';
+  }
+}
+
+function transactionStatusLabel(item) {
+  if (item.status === 'pending') return { text: 'في انتظار تأكيد الطرفين', color: 'var(--ink-soft)' };
+  if (item.status === 'cancelled') return { text: 'اتلغت', color: 'var(--red)' };
+  if (item.status === 'completed') return { text: '✅ خلصت وتقفلت بأمان', color: 'var(--green)' };
+  // confirmed
+  if (item.dealType === 'sale') {
+    return item.currentlyHolding
+      ? { text: 'اتوثق التسليم — جاهزة للإغلاق', color: 'var(--navy)' }
+      : { text: 'مؤكدة — لسه محصلش تسليم', color: 'var(--ink-soft)' };
+  }
+  if (item.currentlyHolding) return { text: 'شغالة — الجهاز عند الطرف التاني', color: 'var(--amber-dark)' };
+  if (item.returned) return { text: 'الجهاز رجع — في انتظار إنهاء المعاملة', color: 'var(--navy)' };
+  return { text: 'مؤكدة — لسه محصلش تسليم', color: 'var(--ink-soft)' };
+}
+
+function transactionRowHTML(item) {
+  const status = transactionStatusLabel(item);
+  const icon = item.dealType === 'sale' ? '🤝' : '📅';
+  const counterpartyName = item.counterparty ? item.counterparty.fullName : 'مستخدم';
+  const dateText = new Date(item.createdAt).toLocaleDateString('ar-EG');
+  return (
+    '<div class="list-row" onclick="openTransactionDetail(\'' + item.dealId + '\')" style="cursor:pointer; margin-top:9px;">' +
+    '<span style="font-size:18px;">' + icon + '</span>' +
+    '<div style="flex:1;">' +
+    '<div style="font-size:13px; font-weight:700; color:var(--navy);">' + escapeHtml(item.equipment ? item.equipment.title : 'جهاز مساحة') + '</div>' +
+    '<div style="font-size:11px; color:var(--ink-soft);">' + dealTypeLabel(item.dealType) + ' — مع ' + escapeHtml(counterpartyName) + '</div>' +
+    '<div style="font-size:11px; font-weight:700; margin-top:2px; color:' + status.color + ';">' + status.text + ' · ' + escapeHtml(dateText) + '</div>' +
+    '</div>' +
+    '<span style="color:var(--ink-faint);">←</span>' +
+    '</div>'
+  );
+}
+
+function openTransactionDetail(dealId) {
+  const item = myTransactionsCache[dealId];
+  if (!item || !item.equipment) return;
+  const currentUser = getCurrentUser();
+  const ownerId = item.isOwner ? (currentUser ? currentUser.id : null) : (item.counterparty ? item.counterparty.id : null);
+  const otherPartyId = item.isOwner ? (item.counterparty ? item.counterparty.id : null) : (currentUser ? currentUser.id : null);
+  openHandoverLog(item.equipment.id, ownerId, otherPartyId, item.isOwner, 'transactions');
+}
+
 function myEquipRowHTML(item) {
   const icon = CATEGORY_ICONS[item.category] || '▦';
   const priceText = item.listingType === 'rent'
